@@ -1,0 +1,156 @@
+totalJobNum
+
+
+# 判断 jodId 中正在执行的ftp是否完成，完成且有未启动的，则启动。
+proc jobFtpEndDetect {jobId   {numMb 100}} {
+    global job ftp tcp
+    global ns fend
+    set now [$ns now]
+
+    set mapn		$job($jobId,mapNum)
+    set reducen		$job($jobId,reduceNum)
+    for {set j 0} {$j < $reducen} {incr j} {
+        for {set k [expr $mapn - 1]} {$k >= 0} {set k [expr $k - 1]} {
+            if {$ftp($jobId,$k,$j,status) == "s" && yes == [$ftp($jobId,$k,$j)   isend]} {
+            	set		ftp($jobId,$k,$j,status)		"d"
+                incr	job($jobId,r$j,fin)
+                incr	job($jobId,ing)		-1
+                puts	$fend "$now    ftp($jobId,$k,$j) end [$job($jobId,m,$k) id].[$tcp($jobId,$k,$j) port],[$job($jobId,r,$j) id].[$tcp($jobId,$k,$j) dst-port]"
+                puts	$fend "$now    job($jobId,r$j,fin) = $job($jobId,r$j,fin)"
+                puts	$fend ""
+                set		started		$job($jobId,r$j,started)
+                if { $started < $mapn} {
+                    set	nbyte [expr 1000 * 1000 * $numMb]
+                    set	ftp($jobId,$started,$j,status) "s"
+                    $ns	at $now "$ftp($jobId,$started,$j)  send $nbyte"
+                    incr	job($jobId,r$j,started)
+                    incr	job($jobId,ing)
+                    puts	$fend "$now    ftp($jobId,$started,$j) start"
+                    puts	$fend "$now    job($jobId,r$j,started) = $job($jobId,r$j,started)"
+                    puts	$fend ""
+                }
+            }
+        }
+    }
+}
+
+
+
+# 检测jobId 的 job 是否完成
+proc jobEndDetect { jobId } {
+    global job
+    global ns
+
+    set now [$ns now]
+    set mapn $job($jobId,mapNum)
+    set reducen $job($jobId,reduceNum)
+    set flag "yes"
+    for {set i 0} {$i < $reducen} {incr i} {
+        if {$job($jobId,r$i,fin) != $mapn} {
+            set flag "no"
+        }
+	#puts "$now : $job($jobId,r$i,fin)"
+    }
+
+    return $flag
+}
+
+# 每隔intval检测一次，监测ftp和job的完成情况，并启动新的ftp
+proc everyDetect { {numMb 100} } {
+    global	job		ftp 
+    global	jobTag	jobNotTag
+    global 	ns fend jobDoneNum totalJobNum
+    global 	sceneStartT sceneEndT
+    global 	eachPodNum TAGSEC
+    global 	qFile qMonitor
+    global 	qRecordCount QUEUERECORD
+    global 	jobEndTime
+    global 	runningTAGSEC
+
+    set intval 0.5
+    set now [$ns now]
+    #if {0 == [expr {int($now)} % 100]} {
+        #puts "time : $now"
+    #}
+
+# 检测每个运行的job的每个运行的流的完成情况
+# 如果完成且有未开始的，启动
+    for {set seq 1} { $seq < $totalJobNum} {incr seq} {
+        #proc jobFtpEndDetect {jobId   {numMb 100}}
+        jobFtpEndDetect $seq $numMb
+    }
+
+
+# 检测每个job是否完成
+    for {set seq 1} { $seq < $totalJobNum} {incr seq} {
+        #proc jobEndDetect { jobId }
+        if { yes == [jobEndDetect $seq] } {
+                #puts "$now job($jobTag($seq)) finished."
+		puts "#[expr $now -  $sceneStartT] job($seq) finished."
+                incr jobDoneNum
+        }
+    }
+    #puts "jobDoneNum = $jobDoneNum"
+
+
+    if {1 == $QUEUERECORD} {
+        foreach i [array names qMonitor] {
+            puts $qFile($i) "$qRecordCount  [$qMonitor($i)  set pkts_]"
+        }
+        incr qRecordCount
+        if {0 == [expr $qRecordCount % 10]} {
+            foreach i [array names qFile] {
+                flush $qFile($i)
+            }
+        }
+    }
+
+    if {$jobDoneNum < $totalJobNum} {
+        $ns at [expr $now+$intval] "everyDetect $numMb"
+    } else {
+        set sceneEndT $now
+        puts "scene Done at $now"
+        puts "time : [expr $sceneEndT - $sceneStartT]"
+        incr qRecordCount 10000
+    }
+}
+
+array set	jobCmp		""
+array set	jobEndTime		""
+set		sceneNum		0
+
+in startscene	:		incr	sceneNum
+
+
+jobEnd	:			set	jobEndTime($sceneNum,$i)		$now
+
+
+
+finish:
+
+for {set $i 1} {$i <= $sceneNum} {incr i} {
+	puts	$fend	"Scene No. $i":
+	for {set $j 1} {$j <= totalJobNum} {incr j} {
+		puts -nonewline $fend "$jobEndTime($i,$j)\t"
+	}
+}
+
+puts $fend "\n cmp:"
+for {set i 1} {$i <= $totalJobNum} {incr i} {
+	set jobCmp($i) [expr $jobEndTime(2,$i) - $jobEndTime(1,$i)]
+	puts -nonewline $fend "$jobCmp($i)\t"
+}
+puts ""
+parray jobCmp
+
+
+	
+
+
+
+
+
+
+
+
+
