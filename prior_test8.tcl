@@ -698,6 +698,7 @@ for {set i 0} {$i < $hostNum} {incr i} {
 # agg switch
 for {set pn 0} {$pn < $podNum} {incr pn} {
     for {set i 0} {$i < $eachPodNum} {incr i} {
+		set aggsh [expr $i * $eachPodNum]
         set  classifier  [$pod($pn,a,$i) entry]
         $classifier    setFatTreeK $k
         $classifier    setNodeInfo  $pn $i $t_nc -1
