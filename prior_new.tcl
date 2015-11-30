@@ -78,13 +78,14 @@ for {set i 0} {$i < $hostNum} {incr i} {
 # agg switch
 for {set pn 0} {$pn < $podNum} {incr pn} {
     for {set i 0} {$i < $eachPodNum} {incr i} {
-		set aggsh [expr i * eachPodNum]
         set  classifier  [$pod($pn,a,$i) entry]
         $classifier    setFatTreeK $k
-        $classifier    setNodeInfo  $pn $i $t_nc -1
-		puts [$pod($pn,a,$i) id], aggsh
+        $classifier    setNodeInfo  $pn $i $t_nc $aggsh
+		puts "[$pod($pn,a,$i) id]\t$aggsh"
     }
 }
+
+puts	"------------------"
 
 # edge switch
 for {set pn 0} {$pn < $podNum} {incr pn} {
@@ -93,6 +94,7 @@ for {set pn 0} {$pn < $podNum} {incr pn} {
         set  classifier  [$pod($pn,e,$i) entry]
         $classifier    setFatTreeK $k
         $classifier    setNodeInfo  $pn $i $t_nc $aggsh
+		puts "[$pod($pn,e,$i) id]\t$aggsh"
     }
 }
 
