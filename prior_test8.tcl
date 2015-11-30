@@ -700,7 +700,7 @@ for {set pn 0} {$pn < $podNum} {incr pn} {
     for {set i 0} {$i < $eachPodNum} {incr i} {
         set  classifier  [$pod($pn,a,$i) entry]
         $classifier    setFatTreeK $k
-        $classifier    setNodeInfo  $pn $i $t_nc -1
+        $classifier    setNodeInfo  $pn $i $t_nc $aggsh
     }
 }
 
