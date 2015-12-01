@@ -1,13 +1,13 @@
 #!/usr/bin/perl
 
 
-$logFile="/home/oslo/simu/ns2_test/result-pror-7.txt";
-$tclFile="/home/oslos/myGit/ns2/prior_test7.tcl";
+$logFile="/home/oslo/App/shiyan/testResult/result-pror-8.txt";
+$tclFile="/home/oslo/App/shiyan/ns2/prior_test8.tcl";
 
 #$AllocInput="/home/hadoop/myGit/ns2/w_file.tcl";
 
 $AwkFile = "/home/hadoop/myGit/ns2/awkpacketLoss.awk";
-$TraceFile = "/home/hadoop/simu/prior_test7.tr";
+$TraceFile = "/home/oslo/App/shiyan/testResult/prior_test7.tr";
 
 
 system("rm $logFile");
