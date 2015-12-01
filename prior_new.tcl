@@ -3,101 +3,87 @@ set ns [new Simulator]
 
 $ns rtproto simple
 
-#---------TOPOLOGY-------------
-#
-#Create Nodes
-#
+set nf [open out.nam w]
+$ns namtrace-all $nf
+ 
+#Define a 'finish' procedure
+proc finish {} {
+        global ns nf
+        $ns flush-trace
+        #Close the NAM trace file
+        close $nf
+        #Execute NAM on the trace file
+        exec nam out.nam &
+        exit 0
+}
+ 
+#Create four nodes
+set n0 [$ns node]
+set n1 [$ns node]
+set n2 [$ns node]
+set n3 [$ns node]
 
-set     k				4
-set     coreNum         [expr $k * $k / 4]
-set     podNum	      	$k
-set     eachPodNum		[expr $k / 2]
-set     hostNum			[expr $k * $k * $k /4]
-set		TAGSEC			1
-set		runningTAGSEC	0
+$ns color 0 Black
+$ns color 1 Blue
+$ns color 2 Red
+$ns color 3 green
+$ns color 4 yellow
+$ns color 5 brown
+$ns color 6 chocolate
+$ns color 7 gold
+$ns color 8 tan
+
+#Create links between the nodes
+$ns duplex-link $n0 $n1 2Mb 10ms DropTail
+$ns duplex-link $n0 $n2 2Mb 10ms DropTail
+$ns duplex-link $n1 $n3 2Mb 10ms DropTail
+$ns duplex-link $n2 $n3 2Mb 10ms DropTail
+ 
+set udp [new Agent/UDP]
+$ns attach-agent $n0 $udp
+set null [new Agent/Null]
+$ns attach-agent $n3 $null
+$ns connect $udp $null
+$udp set fid_  1
+$udp set fid_  2
+
+puts [$n3 id]
+puts [[$null set node_] id]
 
 
-array set   coreSw		""
-array set   pod			""
-array set   host		""
+#Setup a CBR over UDP connection
+set cbr [new Application/Traffic/CBR]
+$cbr attach-agent $udp
+$cbr set type_ CBR
+$cbr set packet_size_ 1000
+$cbr set rate_ 1mb
+$cbr set random_ false
+ 
+  #Schedule events for the CBR and FTP agents
+#$ns at 0.1 "$cbr start"
+#$ns at 4.5 "$cbr stop"
+ 
+#$ns at 5.0 "finish"
+#$ns run
+array set ss ""
 
-# core switch
-for {set i 0} {$i < $coreNum} {incr i} {
-    set  coreSw($i) [$ns node]
+set isFlowBased	1
+
+
+set jobId		1
+set flowCnt		0
+for {set i 0} {$i < 10} {incr i} {
+	set ss($i)	[expr $jobId * 1000 + $flowCnt]
+	incr flowCnt
+	if {0 == $isFlowBased} {
+		set ss($i) 		[expr $ss($i) / 1000]
+	}
 }
 
-# pod aggregation switch
-# switch 命名规则：pod(i, type, j)
-# i : podNum
-# type : a-agg, e-edge
-# j : eachPodNum
+parray ss
 
-for {set i 0} {$i < $podNum} {incr i} {
-    for {set j 0} {$j < $eachPodNum} {incr j} {
-        set  pod($i,a,$j) [$ns node]
-    }
-}
-
-# pod edge switch
-for {set i 0} {$i < $podNum} {incr i} {
-    for {set j 0} {$j < $eachPodNum} {incr j} {
-        set  pod($i,e,$j) [$ns node]
-    }
-}
-
-# host
-for {set i 0} {$i < $hostNum} {incr i} {
-    set  host($i) [$ns node]
-}
-
-
-#---------Set Switch arguments-------------
-# 设置节点类型
-# t_host, t_core单路径
-# t_agg, t_edge 可多路径
-set t_host      1
-set t_core      2
-set t_agg       3
-set t_edge      4
-set t_nc       	-1
-
-# core switch
-for {set i 0} {$i < $coreNum} {incr i} {
-    set  classifier  [$coreSw($i) entry]
-    $classifier  setNodeType    $t_nc
-}
-
-
-# host
-for {set i 0} {$i < $hostNum} {incr i} {
-    set  classifier  [$host($i) entry]
-    $classifier  setNodeType    $t_nc
-}
-
-
-# agg switch
-for {set pn 0} {$pn < $podNum} {incr pn} {
-    for {set i 0} {$i < $eachPodNum} {incr i} {
-		set aggsh [expr $i * $eachPodNum]
-        set  classifier  [$pod($pn,a,$i) entry]
-        $classifier    setFatTreeK $k
-        $classifier    setNodeInfo  $pn $i $t_nc -1
-		puts "[$pod($pn,a,$i) id] $aggsh"
-    }
-}
-
-# edge switch
-for {set pn 0} {$pn < $podNum} {incr pn} {
-    set aggsh [$pod($pn,a,0) id]
-    for {set i 0} {$i < $eachPodNum} {incr i} {
-        set  classifier  [$pod($pn,e,$i) entry]
-        $classifier    setFatTreeK $k
-        $classifier    setNodeInfo  $pn $i $t_nc $aggsh
-    }
-}
-
-
-
+set ftp [new Application/FTP]
+puts $ftp
 
 
 

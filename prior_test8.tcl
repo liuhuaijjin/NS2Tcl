@@ -8,7 +8,7 @@
 #  多job + 多路径（flow-based scheduling）
 #
 #
-#	改动：
+#	已有：
 #	(1)	输出格式
 #		t1	t2	t3 ...	sceneTime
 #	！！完成	2015-04-23 16:04:41 
@@ -18,12 +18,13 @@
 #	
 #	(3) 当最高优先级完成，次优先级变成最高优先级，即设置最高优先级动态设定。
 #
+#	新增：
+#	(1) 实现flow-based 的 多路径
+#		
 #
 #
 #
-#
-#
-#	2015-04-23 15:01:55 
+#	2015-12-01 15:01:55 
 
 
 
@@ -113,14 +114,24 @@ proc createTcpConnection {job_a jobId tcp_a sink_a ftp_a record {wnd 128} {packe
     upvar $tcp_a		arrtcp
     upvar $sink_a		arrsink
     upvar $ftp_a		arrftp
-    global ns
+    global ns isFlowBased
 
     set mapn 		$arrj($jobId,mapNum)
     set reducen 	$arrj($jobId,reduceNum)
+	set flowCnt		0
+
     for {set i 0} {$i < $mapn} {incr i} {
         for {set j 0} {$j < $reducen} {incr j} {
             set tcp [new Agent/TCP/Reno]
-            $tcp set fid_ 			$jobId
+			
+			set jjobid	[expr $jobId * 1000 + $flowCnt]
+			incr flowCnt
+			if {0 == $isFlowBased} {
+				set jjobid 		[expr $jjobid / 1000]
+			}
+			puts $jjobid
+            $tcp set fid_ 			$jjobid
+
             $tcp set window_ 		$wnd
             $tcp set packetSize_ 	$packetSize
             $ns		attach-agent 	$arrj($jobId,m,$i)	$tcp
@@ -681,10 +692,16 @@ set t_agg       3
 set t_edge      4
 set t_nc       	-1
 
+set		isFlowBased		[lindex $argv 3]
+# 1 代表flowBased
+# 0 代表packetBased
+
+
 # core switch
 for {set i 0} {$i < $coreNum} {incr i} {
     set  classifier  [$coreSw($i) entry]
     $classifier  setNodeType    $t_nc
+	$classifier  setFlowBased    $isFlowBased
 }
 
 
@@ -692,6 +709,7 @@ for {set i 0} {$i < $coreNum} {incr i} {
 for {set i 0} {$i < $hostNum} {incr i} {
     set  classifier  [$host($i) entry]
     $classifier  setNodeType    $t_nc
+	$classifier  setFlowBased    $isFlowBased
 }
 
 
@@ -700,8 +718,9 @@ for {set pn 0} {$pn < $podNum} {incr pn} {
     for {set i 0} {$i < $eachPodNum} {incr i} {
 		set aggsh [expr $i * $eachPodNum]
         set  classifier  [$pod($pn,a,$i) entry]
-        $classifier    setFatTreeK $k
-        $classifier    setNodeInfo  $pn $i $t_nc -1
+        $classifier		setFatTreeK $k
+        $classifier		setNodeInfo  $pn $i $t_nc -1
+		$classifier		setFlowBased    $isFlowBased
     }
 }
 
@@ -710,8 +729,9 @@ for {set pn 0} {$pn < $podNum} {incr pn} {
     set aggsh [$pod($pn,a,0) id]
     for {set i 0} {$i < $eachPodNum} {incr i} {
         set  classifier  [$pod($pn,e,$i) entry]
-        $classifier    setFatTreeK $k
-        $classifier    setNodeInfo  $pn $i $t_nc $aggsh
+        $classifier		setFatTreeK $k
+        $classifier		setNodeInfo  $pn $i $t_nc $aggsh
+		$classifier		setFlowBased    $isFlowBased
     }
 }
 
@@ -739,7 +759,7 @@ proc resetAllLast {} {
 #set		totalJobNum		6
 
 set		totalJobNum		[lindex $argv 0]
-set		queueNum			[lindex $argv 1]
+set		queueNum		[lindex $argv 1]
 set		HowToReadPoint	[lindex $argv 2]
 
 set		TopPriorityNum	1
