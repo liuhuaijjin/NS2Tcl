@@ -82,9 +82,50 @@ for {set i 0} {$i < 10} {incr i} {
 
 parray ss
 
+array set tt ""
 set ftp [new Application/FTP]
 puts $ftp
+set tt($ftp) 1
+
+parray tt
+
+#$arrftp($jobId,$i,$
+#ftpRecord()
+
+#set  classifier  [$coreSw($i) entry]
+
+set     k				8
+set     coreNum         [expr $k * $k / 4]
+set     podNum	      	$k
+set     eachPodNum		[expr $k / 2]
+set     hostNum			[expr $k * $k * $k /4]
+set		TAGSEC			1
+set		runningTAGSEC	0
+
+set		hostShift		[expr 5 * $k * $k / 4]
+set		hostNumInPod	[expr $k * $k / 4]
+set		aggNumInPod		[expr $k * $k / 2]
+
+set		totalNodeNum	[expr $hostShift + $k * $hostNumInPod]
+
+proc addrToPodId { id } {
+	global hostShift hostNumInPod
+	return [expr ($id - $hostShift) / $hostNumInPod]
+}
+
+proc addrToSubnetId { id } {
+	global hostShift hostNumInPod eachPodNum
+	return [expr (($id - $hostShift) % $hostNumInPod) / $eachPodNum]
+}
+
+proc addrToFirstNode { id } {
+	global hostShift hostNumInPod eachPodNum coreNum aggNumInPod
+	return [expr $coreNum + $aggNumInPod + $eachPodNum * [addrToPodId $id] + [addrToSubnetId $id]]
+
+}
 
 
-
+for {set id $hostShift} {$id < $totalNodeNum} {incr id} {
+	puts "$id  [addrToPodId $id] -- [addrToSubnetId $id] -- [addrToFirstNode $id]"
+}
 

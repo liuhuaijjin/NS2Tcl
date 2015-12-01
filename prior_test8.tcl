@@ -114,7 +114,7 @@ proc createTcpConnection {job_a jobId tcp_a sink_a ftp_a record {wnd 128} {packe
     upvar $tcp_a		arrtcp
     upvar $sink_a		arrsink
     upvar $ftp_a		arrftp
-    global ns isFlowBased
+    global ns isFlowBased ftpRecord
 
     set mapn 		$arrj($jobId,mapNum)
     set reducen 	$arrj($jobId,reduceNum)
@@ -144,6 +144,10 @@ proc createTcpConnection {job_a jobId tcp_a sink_a ftp_a record {wnd 128} {packe
             set ftp [new Application/FTP]
             $ftp attach-agent 		$tcp
             $ftp set type_ FTP
+
+			# 记录ftp的src，dst 节点。 用于flow based scheduling
+			set ftpRecord($ftp,src)	$arrj($jobId,m,$i)
+			set ftpRecord($ftp,dst)	$arrj($jobId,r,$j)
 
             set arrtcp($jobId,$i,$j) 		$tcp
             set arrsink($jobId,$i,$j) 		$sink
@@ -430,6 +434,23 @@ proc everyDetect { {numMb 100} } {
     }
 }
 
+
+proc addrToPodId { id } {
+	global hostShift hostNumInPod
+	return [expr ($id - $hostShift) / $hostNumInPod]
+}
+
+proc addrToSubnetId { id } {
+	global hostShift hostNumInPod eachPodNum
+	return [expr (($id - $hostShift) % $hostNumInPod) / $eachPodNum]
+}
+
+proc addrToFirstNode { id } {
+	global hostShift hostNumInPod eachPodNum coreNum aggNumInPod
+	return [expr $coreNum + $aggNumInPod + $eachPodNum * [addrToPodId $id] + [addrToSubnetId $id]]
+
+}
+
 #**********************************************************
 
 
@@ -539,6 +560,10 @@ set     hostNum			[expr $k * $k * $k /4]
 set		TAGSEC			1
 set		runningTAGSEC	0
 
+
+set		hostShift		[expr 5 * $k * $k / 4]
+set		hostNumInPod	[expr $k * $k / 4]
+set		aggNumInPod		[expr $k * $k / 2]
 
 array set   coreSw		""
 array set   pod			""
@@ -803,7 +828,7 @@ array set	jobCmp		""
 array set	jobEndTime		""
 set		sceneNum		0
 
-
+array set ftpRecord ""
 
 #---------JOB ARGUMENTS---------
 
