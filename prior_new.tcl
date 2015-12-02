@@ -89,11 +89,6 @@ set tt($ftp) 1
 
 parray tt
 
-#$arrftp($jobId,$i,$
-#ftpRecord()
-
-#set  classifier  [$coreSw($i) entry]
-
 set     k				8
 set     coreNum         [expr $k * $k / 4]
 set     podNum	      	$k
@@ -124,8 +119,121 @@ proc addrToFirstNode { id } {
 
 }
 
+proc getFirstNodeByAddr { id } {
+	global hostShift hostNumInPod eachPodNum coreNum aggNumInPod
+	return [expr $coreNum + $aggNumInPod + $eachPodNum * [addrToPodId $id] + [addrToSubnetId $id]]
+
+}
+
+# pod aggregation switch
+# switch 命名规则：pod(i,type,j)
+# i : podNum
+# type : a-agg, e-edge
+# j : eachPodNum
+
+#$arrftp($jobId,$i,$
+#ftpRecord()
+
+#set  classifier  [$coreSw($i) entry]
+
+set		CmdaddFlow		1
+set		CmdremoveFlow	2
 
 for {set id $hostShift} {$id < $totalNodeNum} {incr id} {
 	puts "$id  [addrToPodId $id] -- [addrToSubnetId $id] -- [addrToFirstNode $id]"
 }
+
+# 根据ftp的src,dst，在相应的switch上添加/删除flow信息，
+# 达成flow based scheduling
+# centrlCtrlFlow ftp {CmdaddFlow/CmdremoveFlow}
+proc centrlCtrlFlow { ftp command} {
+	global ftpRecord pod CmdaddFlow CmdremoveFlow
+	set srcNodeId	[$ftpRecord($ftp,src) id]
+	set dstNodeId	[$ftpRecord($ftp,dst) id]
+	set fid			$ftpRecord($ftp,fid)
+
+	if {$srcNodeId == $dstNodeId} {
+		return
+	}
+	set spid	[addrToPodId $srcNodeId]
+	set ssubpid	[addrToSubnetId $srcNodeId]
+	set dpid	[addrToPodId $dstNodeId]
+	set dsubpid	[addrToSubnetId $dstNodeId]
+
+	set firstNode	$pod($spid,e,$ssubpid)
+	set classifier  [$firstNode entry]
+
+	if {$spid != $dpid} {
+		# 不同pod内， 6hops, 4paths
+		if {$command == $CmdaddFlow} {
+			set nextId [$classifier	addFlowId	$fid]
+			if {-1 == $nextId} {
+				return
+			}
+			set sndNode $pod([addrToPodId $nextId],a,[addrToSubnetId $nextId])
+			set classifier2  [$sndNode entry]
+			$classifier2	addFlowId	$fid
+		} elseif {$command == $CmdremoveFlow} {
+			set nextId [$classifier removeFlowId $fid]
+			if {-1 == $nextId} {
+				return
+			}
+			set sndNode $pod([addrToPodId $nextId],a,[addrToSubnetId $nextId])
+			set classifier2  [$sndNode entry]
+			$classifier2	removeFlowId	$fid
+		}
+
+	} elseif { $ssubpid != $dsubpid} {
+		# 同pod， 不同subpod， 4hops, 2path
+		if {$command == $CmdaddFlow} {
+			set nextId [$classifier	addFlowId	$fid]
+		} elseif {$command == $CmdremoveFlow} {
+			set nextId [$classifier removeFlowId $fid]
+		}
+	}
+}
+
+
+
+proc ttt {} {
+
+	set a 3
+	set b 4
+	if {$a == 1} {
+		puts "-------------"
+		return 
+	} elseif {$b == 2} {
+		puts "*************"
+		return 
+	}
+	puts "88888888888888"
+
+}
+
+ttt
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

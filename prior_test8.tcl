@@ -145,9 +145,10 @@ proc createTcpConnection {job_a jobId tcp_a sink_a ftp_a record {wnd 128} {packe
             $ftp attach-agent 		$tcp
             $ftp set type_ FTP
 
-			# 记录ftp的src，dst 节点。 用于flow based scheduling
+			# 记录ftp的src，dst 节点, fid。 用于flow based scheduling
 			set ftpRecord($ftp,src)	$arrj($jobId,m,$i)
 			set ftpRecord($ftp,dst)	$arrj($jobId,r,$j)
+			set ftpRecord($ftp,fid)	$jjobid
 
             set arrtcp($jobId,$i,$j) 		$tcp
             set arrsink($jobId,$i,$j) 		$sink
@@ -178,6 +179,73 @@ proc setTopPriority { {num 0}} {
         [$arrLink($i) queue] setMaxPriority $num
     }
 }
+
+proc addrToPodId { id } {
+	global hostShift hostNumInPod
+	return [expr ($id - $hostShift) / $hostNumInPod]
+}
+
+proc addrToSubnetId { id } {
+	global hostShift hostNumInPod eachPodNum
+	return [expr (($id - $hostShift) % $hostNumInPod) / $eachPodNum]
+}
+
+proc addrToFirstNode { id } {
+	global hostShift hostNumInPod eachPodNum coreNum aggNumInPod
+	return [expr $coreNum + $aggNumInPod + $eachPodNum * [addrToPodId $id] + [addrToSubnetId $id]]
+
+}
+
+# 根据ftp的src,dst，在相应的switch上添加/删除flow信息，
+# 达成flow based scheduling
+# centrlCtrlFlow ftp {CmdaddFlow/CmdremoveFlow}
+proc centrlCtrlFlow { ftp command} {
+	global ftpRecord pod CmdaddFlow CmdremoveFlow
+	set srcNodeId	[$ftpRecord($ftp,src) id]
+	set dstNodeId	[$ftpRecord($ftp,dst) id]
+	set fid			$ftpRecord($ftp,fid)
+
+	if {$srcNodeId == $dstNodeId} {
+		return
+	}
+	set spid	[addrToPodId $srcNodeId]
+	set ssubpid	[addrToSubnetId $srcNodeId]
+	set dpid	[addrToPodId $dstNodeId]
+	set dsubpid	[addrToSubnetId $dstNodeId]
+
+	set firstNode	$pod($spid,e,$ssubpid)
+	set classifier  [$firstNode entry]
+
+	if {$spid != $dpid} {
+		# 不同pod内， 6hops, 4paths
+		if {$command == $CmdaddFlow} {
+			set nextId [$classifier	addFlowId	$fid]
+			if {-1 == $nextId} {
+				return
+			}
+			set sndNode $pod([addrToPodId $nextId],a,[addrToSubnetId $nextId])
+			set classifier2  [$sndNode entry]
+			$classifier2	addFlowId	$fid
+		} elseif {$command == $CmdremoveFlow} {
+			set nextId [$classifier removeFlowId $fid]
+			if {-1 == $nextId} {
+				return
+			}
+			set sndNode $pod([addrToPodId $nextId],a,[addrToSubnetId $nextId])
+			set classifier2  [$sndNode entry]
+			$classifier2	removeFlowId	$fid
+		}
+
+	} elseif { $ssubpid != $dsubpid} {
+		# 同pod， 不同subpod， 4hops, 2path
+		if {$command == $CmdaddFlow} {
+			set nextId [$classifier	addFlowId	$fid]
+		} elseif {$command == $CmdremoveFlow} {
+			set nextId [$classifier removeFlowId $fid]
+		}
+	}
+}
+
 
 
 proc printScene { label {channel -1}} {
@@ -235,7 +303,7 @@ proc printScene { label {channel -1}} {
 proc startJob {job_a jobId ftp_a wtime {numMb 100}} {
     upvar $job_a arrj
     upvar $ftp_a arrftp
-    global ns
+    global ns isFlowBased CmdaddFlow CmdremoveFlow
 
     set mapn $arrj($jobId,mapNum)
     set reducen $arrj($jobId,reduceNum)
@@ -255,6 +323,9 @@ proc startJob {job_a jobId ftp_a wtime {numMb 100}} {
     for {set j 0} {$j < $reducen} {incr j} {
         for {set i 0} {$i < $mp} {incr i} {
             set nbyte [expr 1000*1000*$numMb]
+			if {1 == $isFlowBased} {
+				centrlCtrlFlow $arrftp($jobId,$i,$j) $CmdaddFlow
+			}
             $ns at $wtime "$arrftp($jobId,$i,$j) send $nbyte"
             set arrftp($jobId,$i,$j,status) "s"
         }
@@ -298,7 +369,7 @@ proc sceneStart {startTime {numMb 100}} {
 # 判断 jodId 中正在执行的ftp是否完成，完成且有未启动的，则启动。
 proc jobFtpEndDetect {jobId   {numMb 100}} {
     global job ftp tcp
-    global ns fend
+    global ns fend isFlowBased CmdaddFlow CmdremoveFlow
     set now [$ns now]
 
     set mapn		$job($jobId,mapNum)
@@ -309,6 +380,9 @@ proc jobFtpEndDetect {jobId   {numMb 100}} {
             	set		ftp($jobId,$k,$j,status)		"d"
                 incr	job($jobId,r$j,fin)
                 incr	job($jobId,ing)		-1
+				if {1 == $isFlowBased} {
+					centrlCtrlFlow $arrftp($jobId,$i,$j) $CmdremoveFlow
+				}
                 puts	$fend "$now    ftp($jobId,$k,$j) end [$job($jobId,m,$k) id].[$tcp($jobId,$k,$j) port],[$job($jobId,r,$j) id].[$tcp($jobId,$k,$j) dst-port]"
                 puts	$fend "$now    job($jobId,r$j,fin) = $job($jobId,r$j,fin)"
                 puts	$fend ""
@@ -316,6 +390,9 @@ proc jobFtpEndDetect {jobId   {numMb 100}} {
                 if { $started < $mapn} {
                     set	nbyte [expr 1000 * 1000 * $numMb]
                     set	ftp($jobId,$started,$j,status) "s"
+					if {1 == $isFlowBased} {
+						centrlCtrlFlow $ftp($jobId,$started,$j) $CmdaddFlow
+					}
                     $ns	at $now "$ftp($jobId,$started,$j)  send $nbyte"
                     incr	job($jobId,r$j,started)
                     incr	job($jobId,ing)
@@ -435,21 +512,6 @@ proc everyDetect { {numMb 100} } {
 }
 
 
-proc addrToPodId { id } {
-	global hostShift hostNumInPod
-	return [expr ($id - $hostShift) / $hostNumInPod]
-}
-
-proc addrToSubnetId { id } {
-	global hostShift hostNumInPod eachPodNum
-	return [expr (($id - $hostShift) % $hostNumInPod) / $eachPodNum]
-}
-
-proc addrToFirstNode { id } {
-	global hostShift hostNumInPod eachPodNum coreNum aggNumInPod
-	return [expr $coreNum + $aggNumInPod + $eachPodNum * [addrToPodId $id] + [addrToSubnetId $id]]
-
-}
 
 #**********************************************************
 
@@ -565,6 +627,15 @@ set		hostShift		[expr 5 * $k * $k / 4]
 set		hostNumInPod	[expr $k * $k / 4]
 set		aggNumInPod		[expr $k * $k / 2]
 
+# coreSw	记录core 的switch
+# pod		记录agg & edge switch
+# 			pod aggregation switch
+# 			switch 命名规则：pod(i,type,j)asa
+# 			i : podNum
+# 			type : a-agg, e-edge
+# 			j : eachPodNum
+# host		记录host
+
 array set   coreSw		""
 array set   pod			""
 array set   host		""
@@ -573,12 +644,6 @@ array set   host		""
 for {set i 0} {$i < $coreNum} {incr i} {
     set  coreSw($i) [$ns node]
 }
-
-# pod aggregation switch
-# switch 命名规则：pod(i, type, j)
-# i : podNum
-# type : a-agg, e-edge
-# j : eachPodNum
 
 for {set i 0} {$i < $podNum} {incr i} {
     for {set j 0} {$j < $eachPodNum} {incr j} {
@@ -720,6 +785,9 @@ set t_nc       	-1
 set		isFlowBased		[lindex $argv 3]
 # 1 代表flowBased
 # 0 代表packetBased
+
+set		CmdaddFlow			1
+set		CmdremoveFlow		2
 
 
 # core switch
