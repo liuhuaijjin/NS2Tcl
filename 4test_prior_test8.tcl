@@ -361,7 +361,6 @@ proc sceneStart {startTime {numMb 100}} {
     }
     #parray jobIng
     
-
     $ns at [expr $startTime + 0.1] "everyDetect $numMb"
 }
 
@@ -947,6 +946,7 @@ if {"DTPR" == $queueType} {
 }
 
 #$ns at $FirstSet "printScene Scene_1_QueueFair"
+
 
 $ns at $FirstSet "sceneStart $FirstStart $flowVol"
 

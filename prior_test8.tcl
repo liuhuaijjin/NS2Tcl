@@ -129,7 +129,7 @@ proc createTcpConnection {job_a jobId tcp_a sink_a ftp_a record {wnd 128} {packe
 			if {0 == $isFlowBased} {
 				set jjobid 		[expr $jjobid / 1000]
 			}
-			puts $jjobid
+			#puts $jjobid
             $tcp set fid_ 			$jjobid
 
             $tcp set window_ 		$wnd
@@ -180,21 +180,28 @@ proc setTopPriority { {num 0}} {
     }
 }
 
-proc addrToPodId { id } {
-	global hostShift hostNumInPod
-	return [expr ($id - $hostShift) / $hostNumInPod]
+proc addrToPodId { id {level 3}} {
+	global hostShift hostNumInPod aggShift eachPodNum
+	if {3 == $level} {
+		return [expr ($id - $hostShift) / $hostNumInPod]
+	} elseif {1 == $level} {
+		return [expr ($id - $aggShift) / $eachPodNum]
+	}
 }
 
-proc addrToSubnetId { id } {
-	global hostShift hostNumInPod eachPodNum
-	return [expr (($id - $hostShift) % $hostNumInPod) / $eachPodNum]
+proc addrToSubnetId { id {level 3}} {
+	global hostShift hostNumInPod aggShift eachPodNum
+	if {3 == $level} {
+		return [expr (($id - $hostShift) % $hostNumInPod) / $eachPodNum]
+	} elseif {1 == $level} {
+		return [expr ($id - $aggShift) % $eachPodNum]
+	}
 }
 
-proc addrToFirstNode { id } {
-	global hostShift hostNumInPod eachPodNum coreNum aggNumInPod
-	return [expr $coreNum + $aggNumInPod + $eachPodNum * [addrToPodId $id] + [addrToSubnetId $id]]
-
-}
+#proc addrToFirstNode { id } {
+#	global hostShift hostNumInPod eachPodNum coreNum aggNumInPod
+#	return [expr $coreNum + $aggNumInPod + $eachPodNum * [addrToPodId $id] + [addrToSubnetId $id]]
+#}
 
 # 根据ftp的src,dst，在相应的switch上添加/删除flow信息，
 # 达成flow based scheduling
@@ -220,10 +227,12 @@ proc centrlCtrlFlow { ftp command} {
 		# 不同pod内， 6hops, 4paths
 		if {$command == $CmdaddFlow} {
 			set nextId [$classifier	addFlowId	$fid]
+			#puts $nextId
+			#puts [addrToPodId $nextId 1]
 			if {-1 == $nextId} {
 				return
 			}
-			set sndNode $pod([addrToPodId $nextId],a,[addrToSubnetId $nextId])
+			set sndNode $pod([addrToPodId $nextId 1],a,[addrToSubnetId $nextId 1])
 			set classifier2  [$sndNode entry]
 			$classifier2	addFlowId	$fid
 		} elseif {$command == $CmdremoveFlow} {
@@ -231,7 +240,7 @@ proc centrlCtrlFlow { ftp command} {
 			if {-1 == $nextId} {
 				return
 			}
-			set sndNode $pod([addrToPodId $nextId],a,[addrToSubnetId $nextId])
+			set sndNode $pod([addrToPodId $nextId 1],a,[addrToSubnetId $nextId 1])
 			set classifier2  [$sndNode entry]
 			$classifier2	removeFlowId	$fid
 		}
@@ -381,7 +390,7 @@ proc jobFtpEndDetect {jobId   {numMb 100}} {
                 incr	job($jobId,r$j,fin)
                 incr	job($jobId,ing)		-1
 				if {1 == $isFlowBased} {
-					centrlCtrlFlow $arrftp($jobId,$i,$j) $CmdremoveFlow
+					centrlCtrlFlow $ftp($jobId,$k,$j) $CmdremoveFlow
 				}
                 puts	$fend "$now    ftp($jobId,$k,$j) end [$job($jobId,m,$k) id].[$tcp($jobId,$k,$j) port],[$job($jobId,r,$j) id].[$tcp($jobId,$k,$j) dst-port]"
                 puts	$fend "$now    job($jobId,r$j,fin) = $job($jobId,r$j,fin)"
@@ -623,6 +632,7 @@ set		TAGSEC			1
 set		runningTAGSEC	0
 
 
+set		aggShift		[expr $k * $k / 4]
 set		hostShift		[expr 5 * $k * $k / 4]
 set		hostNumInPod	[expr $k * $k / 4]
 set		aggNumInPod		[expr $k * $k / 2]
@@ -794,7 +804,7 @@ set		CmdremoveFlow		2
 for {set i 0} {$i < $coreNum} {incr i} {
     set  classifier  [$coreSw($i) entry]
     $classifier  setNodeType    $t_nc
-	$classifier  setFlowBased    $isFlowBased
+	#$classifier  setFlowBased    $isFlowBased
 }
 
 
@@ -802,7 +812,7 @@ for {set i 0} {$i < $coreNum} {incr i} {
 for {set i 0} {$i < $hostNum} {incr i} {
     set  classifier  [$host($i) entry]
     $classifier  setNodeType    $t_nc
-	$classifier  setFlowBased    $isFlowBased
+	#$classifier  setFlowBased    $isFlowBased
 }
 
 
@@ -860,6 +870,8 @@ set		TopPriorityNum	1
 
 puts 	[format "queueNum : %d" $queueNum]
 
+
+
 #puts $totalJobNum
 #puts $queueNum
 #puts $HowToReadPoint
@@ -874,17 +886,17 @@ if { 1 == $HowToReadPoint} {
 
 
 
-set		mapNum			10
-set		reduceNum			4
+set		mapNum			3
+set		reduceNum		1
 
 set		mapWive			0
-set		reduceWive			0
+set		reduceWive		0
 
 set		jobDoneNum		0
-array set	jobIng			""
+array set	jobIng		""
 
 
-set		flowVol				20
+set		flowVol			1
 
 
 set sceneStartT		0

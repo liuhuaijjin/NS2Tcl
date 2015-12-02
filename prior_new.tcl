@@ -89,7 +89,7 @@ set tt($ftp) 1
 
 parray tt
 
-set     k				8
+set     k				4
 set     coreNum         [expr $k * $k / 4]
 set     podNum	      	$k
 set     eachPodNum		[expr $k / 2]
@@ -97,20 +97,29 @@ set     hostNum			[expr $k * $k * $k /4]
 set		TAGSEC			1
 set		runningTAGSEC	0
 
+set		aggShift		[expr $k * $k / 4]
 set		hostShift		[expr 5 * $k * $k / 4]
 set		hostNumInPod	[expr $k * $k / 4]
 set		aggNumInPod		[expr $k * $k / 2]
 
 set		totalNodeNum	[expr $hostShift + $k * $hostNumInPod]
 
-proc addrToPodId { id } {
-	global hostShift hostNumInPod
-	return [expr ($id - $hostShift) / $hostNumInPod]
+proc addrToPodId { id {level 3}} {
+	global hostShift hostNumInPod aggShift eachPodNum
+	if {3 == $level} {
+		return [expr ($id - $hostShift) / $hostNumInPod]
+	} elseif {1 == $level} {
+		return [expr ($id - $aggShift) / $eachPodNum]
+	}
 }
 
-proc addrToSubnetId { id } {
-	global hostShift hostNumInPod eachPodNum
-	return [expr (($id - $hostShift) % $hostNumInPod) / $eachPodNum]
+proc addrToSubnetId { id {level 3}} {
+	global hostShift hostNumInPod aggShift eachPodNum
+	if {3 == $level} {
+		return [expr (($id - $hostShift) % $hostNumInPod) / $eachPodNum]
+	} elseif {1 == $level} {
+		return [expr ($id - $aggShift) % $eachPodNum]
+	}
 }
 
 proc addrToFirstNode { id } {
@@ -139,8 +148,12 @@ proc getFirstNodeByAddr { id } {
 set		CmdaddFlow		1
 set		CmdremoveFlow	2
 
-for {set id $hostShift} {$id < $totalNodeNum} {incr id} {
-	puts "$id  [addrToPodId $id] -- [addrToSubnetId $id] -- [addrToFirstNode $id]"
+#for {set id $hostShift} {$id < $totalNodeNum} {incr id} {
+#	puts "$id  [addrToPodId $id] -- [addrToSubnetId $id] -- [addrToFirstNode $id]"
+#}
+
+for {set id $aggShift} {$id < [expr $hostShift - $aggNumInPod]} {incr id} {
+	puts "$id  [addrToPodId $id 1] -- [addrToSubnetId $id 1]"
 }
 
 # 根据ftp的src,dst，在相应的switch上添加/删除flow信息，
@@ -210,7 +223,6 @@ proc ttt {} {
 
 }
 
-ttt
 
 
 
