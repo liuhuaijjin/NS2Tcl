@@ -866,10 +866,10 @@ puts 	[format "queueNum : %d" $queueNum]
 
 if { 1 == $HowToReadPoint} {
 	# 1 代表读取文件
-	set		allocInputFile		[open  /home/hadoop/simu/alloc.txt r]
+	set		allocInputFile		[open  /home/oslo/simu/alloc.txt r]
 } else {
 	# 2 代表随机产生
-	set		allocInputFile		[open  /home/hadoop/simu/alloc.txt w]
+	set		allocInputFile		[open  /home/oslo/simu/alloc.txt w]
 }
 
 
@@ -889,8 +889,8 @@ set		flowVol				20
 
 set sceneStartT		0
 set sceneEndT		0
-set rec				[open /home/hadoop/simu/nodeAlloc-log.tr w]
-set	fend			[open /home/hadoop/simu/end-log.tr w]
+set rec				[open /home/oslo/simu/nodeAlloc-log.tr w]
+set	fend			[open /home/oslo/simu/end-log.tr w]
 
 array set	jobCmp		""
 array set	jobEndTime		""

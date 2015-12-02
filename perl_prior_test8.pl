@@ -1,13 +1,13 @@
 #!/usr/bin/perl
 
 
-$logFile="/home/oslo/App/shiyan/testResult/result-pror-8.txt";
-$tclFile="/home/oslo/App/shiyan/ns2/prior_test8.tcl";
+$logFile="/home/oslo/simu/testResult/result-pror-8.txt";
+$tclFile="/home/oslo/simu/ns2program/prior_test8.tcl";
 
 #$AllocInput="/home/hadoop/myGit/ns2/w_file.tcl";
 
-$AwkFile = "/home/hadoop/myGit/ns2/awkpacketLoss.awk";
-$TraceFile = "/home/oslo/App/shiyan/testResult/prior_test7.tr";
+$AwkFile = "/home/oslo/simu/ns2program/awkpacketLoss.awk";
+$TraceFile = "/home/oslo/simu/prior_test8.tr";
 
 
 system("rm $logFile");
@@ -24,7 +24,6 @@ for($i=1; $i<=$runTime; $i=$i+1)
 	#system("echo	total : $total   tag : $tag  >> $f2");
 	#system("echo	Number : $i >> $f2");
 	#system("ns $AllocInput 200 >> $f2");
-	system("echo	路径未改");
 	# tcl程序接受4个参数
 	# argv0		jobnum
 	# argv1		queueNum
