@@ -125,6 +125,8 @@ proc createTcpConnection {job_a jobId tcp_a sink_a ftp_a record {wnd 128} {packe
             set tcp [new Agent/TCP/Reno]
 			
 			set jjobid	[expr $jobId * 1000 + $flowCnt]
+			#puts $jjobid
+			#set jjobid	$jobId
 			incr flowCnt
 			if {0 == $isFlowBased} {
 				set jjobid 		[expr $jjobid / 1000]
@@ -203,10 +205,45 @@ proc addrToSubnetId { id {level 3}} {
 #	return [expr $coreNum + $aggNumInPod + $eachPodNum * [addrToPodId $id] + [addrToSubnetId $id]]
 #}
 
+# 不仅设置路径的flow base
+# isFeedBack 用来表示是否是ack路径
+proc centrlCtrlFlow { command spid dpid isFeedBack} {
+	global ftpRecord pod CmdaddFlow CmdremoveFlow
+	if {$spid != $dpid} {
+		# 不同pod内， 6hops, 4paths
+		if {$command == $CmdaddFlow} {
+			set nextId [$classifier	addFlowId $fid $isFeedBack]
+			if {-1 == $nextId} {
+				return
+			}
+			set sndNode $pod([addrToPodId $nextId],a,[addrToSubnetId $nextId])
+			set classifier2  [$sndNode entry]
+			$classifier2	addFlowId $fid isFeedBack
+		} elseif {$command == $CmdremoveFlow} {
+			set nextId [$classifier removeFlowId $fid $isFeedBack]
+			if {-1 == $nextId} {
+				return
+			}
+			set sndNode $pod([addrToPodId $nextId],a,[addrToSubnetId $nextId])
+			set classifier2  [$sndNode entry]
+			$classifier2	removeFlowId	$fid $isFeedBack
+		}
+
+	} elseif { $ssubpid != $dsubpid} {
+		# 同pod， 不同subpod， 4hops, 2path
+		if {$command == $CmdaddFlow} {
+			set nextId [$classifier	addFlowId $fid $isFeedBack]
+		} elseif {$command == $CmdremoveFlow} {
+			set nextId [$classifier removeFlowId $fid $isFeedBack]
+		}
+	}
+
+}
+
 # 根据ftp的src,dst，在相应的switch上添加/删除flow信息，
 # 达成flow based scheduling
-# centrlCtrlFlow ftp {CmdaddFlow/CmdremoveFlow}
-proc centrlCtrlFlow { ftp command} {
+# centrlCtrl ftp {CmdaddFlow/CmdremoveFlow}
+proc centrlCtrl { ftp command} {
 	global ftpRecord pod CmdaddFlow CmdremoveFlow
 	set srcNodeId	[$ftpRecord($ftp,src) id]
 	set dstNodeId	[$ftpRecord($ftp,dst) id]
@@ -223,36 +260,10 @@ proc centrlCtrlFlow { ftp command} {
 	set firstNode	$pod($spid,e,$ssubpid)
 	set classifier  [$firstNode entry]
 
-	if {$spid != $dpid} {
-		# 不同pod内， 6hops, 4paths
-		if {$command == $CmdaddFlow} {
-			set nextId [$classifier	addFlowId	$fid]
-			#puts $nextId
-			#puts [addrToPodId $nextId 1]
-			if {-1 == $nextId} {
-				return
-			}
-			set sndNode $pod([addrToPodId $nextId 1],a,[addrToSubnetId $nextId 1])
-			set classifier2  [$sndNode entry]
-			$classifier2	addFlowId	$fid
-		} elseif {$command == $CmdremoveFlow} {
-			set nextId [$classifier removeFlowId $fid]
-			if {-1 == $nextId} {
-				return
-			}
-			set sndNode $pod([addrToPodId $nextId 1],a,[addrToSubnetId $nextId 1])
-			set classifier2  [$sndNode entry]
-			$classifier2	removeFlowId	$fid
-		}
-
-	} elseif { $ssubpid != $dsubpid} {
-		# 同pod， 不同subpod， 4hops, 2path
-		if {$command == $CmdaddFlow} {
-			set nextId [$classifier	addFlowId	$fid]
-		} elseif {$command == $CmdremoveFlow} {
-			set nextId [$classifier removeFlowId $fid]
-		}
-	}
+	# 设置发包路径的 flow base
+	centrlCtrlFlow $command $spid $dpid 0
+	# 设置ack路径的 flow base
+	centrlCtrlFlow $command $dpid $spid 1
 }
 
 
@@ -333,7 +344,7 @@ proc startJob {job_a jobId ftp_a wtime {numMb 100}} {
         for {set i 0} {$i < $mp} {incr i} {
             set nbyte [expr 1000*1000*$numMb]
 			if {1 == $isFlowBased} {
-				centrlCtrlFlow $arrftp($jobId,$i,$j) $CmdaddFlow
+				centrlCtrl $arrftp($jobId,$i,$j) $CmdaddFlow
 			}
             $ns at $wtime "$arrftp($jobId,$i,$j) send $nbyte"
             set arrftp($jobId,$i,$j,status) "s"
@@ -390,7 +401,7 @@ proc jobFtpEndDetect {jobId   {numMb 100}} {
                 incr	job($jobId,r$j,fin)
                 incr	job($jobId,ing)		-1
 				if {1 == $isFlowBased} {
-					centrlCtrlFlow $ftp($jobId,$k,$j) $CmdremoveFlow
+					centrlCtrl $ftp($jobId,$k,$j) $CmdremoveFlow
 				}
                 puts	$fend "$now    ftp($jobId,$k,$j) end [$job($jobId,m,$k) id].[$tcp($jobId,$k,$j) port],[$job($jobId,r,$j) id].[$tcp($jobId,$k,$j) dst-port]"
                 puts	$fend "$now    job($jobId,r$j,fin) = $job($jobId,r$j,fin)"
@@ -400,7 +411,7 @@ proc jobFtpEndDetect {jobId   {numMb 100}} {
                     set	nbyte [expr 1000 * 1000 * $numMb]
                     set	ftp($jobId,$started,$j,status) "s"
 					if {1 == $isFlowBased} {
-						centrlCtrlFlow $ftp($jobId,$started,$j) $CmdaddFlow
+						centrlCtrl $ftp($jobId,$started,$j) $CmdaddFlow
 					}
                     $ns	at $now "$ftp($jobId,$started,$j)  send $nbyte"
                     incr	job($jobId,r$j,started)
@@ -541,8 +552,8 @@ $ns rtproto simple
 set		f	[open simu/prior_test8.tr w]
 set		nf	[open simu/prior_test8.nam w]
 # 设置nam记录
-#$ns namtrace-all $nf
-$ns trace-all $f
+$ns namtrace-all $nf
+#$ns trace-all $f
 
 proc finish { {isNAM yes} } {
     global ns nf f rec fend
@@ -602,15 +613,15 @@ proc finish { {isNAM yes} } {
         close $qFile($i)
     }
     if {$isNAM} {
-            #exec nam simu/prior_test1.nam &
+            exec nam simu/prior_test8.nam &
     }
     exit 0
 }
 
 $ns color 0 Black
-$ns color 1 Blue
-$ns color 2 Red
-$ns color 3 green
+$ns color 1000 Blue
+$ns color 1001 Red
+$ns color 1002 green
 $ns color 4 yellow
 $ns color 5 brown
 $ns color 6 chocolate
@@ -803,7 +814,7 @@ set		CmdremoveFlow		2
 # core switch
 for {set i 0} {$i < $coreNum} {incr i} {
     set  classifier  [$coreSw($i) entry]
-    $classifier  setNodeType    $t_nc
+    $classifier  setNodeType    $t_core
 	#$classifier  setFlowBased    $isFlowBased
 }
 
@@ -811,7 +822,7 @@ for {set i 0} {$i < $coreNum} {incr i} {
 # host
 for {set i 0} {$i < $hostNum} {incr i} {
     set  classifier  [$host($i) entry]
-    $classifier  setNodeType    $t_nc
+    $classifier  setNodeType    $t_host
 	#$classifier  setFlowBased    $isFlowBased
 }
 
@@ -822,8 +833,9 @@ for {set pn 0} {$pn < $podNum} {incr pn} {
 		set aggsh [expr $i * $eachPodNum]
         set  classifier  [$pod($pn,a,$i) entry]
         $classifier		setFatTreeK $k
-        $classifier		setNodeInfo  $pn $i $t_nc -1
+        $classifier		setNodeInfo  $pn $i $t_agg $aggsh
 		$classifier		setFlowBased    $isFlowBased
+		#$classifier 	printNodeInfo
     }
 }
 
@@ -833,7 +845,7 @@ for {set pn 0} {$pn < $podNum} {incr pn} {
     for {set i 0} {$i < $eachPodNum} {incr i} {
         set  classifier  [$pod($pn,e,$i) entry]
         $classifier		setFatTreeK $k
-        $classifier		setNodeInfo  $pn $i $t_nc $aggsh
+        $classifier		setNodeInfo  $pn $i $t_edge $aggsh
 		$classifier		setFlowBased    $isFlowBased
     }
 }

@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
 
-$logFile="/home/oslo/simu/testResult/result-pror-8.txt";
+$logFile="/home/oslo/simu/result-pror-8.txt";
 $tclFile="/home/oslo/simu/ns2program/prior_test8.tcl";
 $tclFile="/home/oslo/simu/ns2program/4test_prior_test8.tcl";
 

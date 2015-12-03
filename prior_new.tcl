@@ -156,10 +156,45 @@ for {set id $aggShift} {$id < [expr $hostShift - $aggNumInPod]} {incr id} {
 	puts "$id  [addrToPodId $id 1] -- [addrToSubnetId $id 1]"
 }
 
+# 不仅设置路径的flow base
+# isFeedBack 用来表示是否是ack路径
+proc centrlCtrlFlow { command spid dpid isFeedBack} {
+	global ftpRecord pod CmdaddFlow CmdremoveFlow
+	if {$spid != $dpid} {
+		# 不同pod内， 6hops, 4paths
+		if {$command == $CmdaddFlow} {
+			set nextId [$classifier	addFlowId $fid $isFeedBack]
+			if {-1 == $nextId} {
+				return
+			}
+			set sndNode $pod([addrToPodId $nextId],a,[addrToSubnetId $nextId])
+			set classifier2  [$sndNode entry]
+			$classifier2	addFlowId $fid isFeedBack
+		} elseif {$command == $CmdremoveFlow} {
+			set nextId [$classifier removeFlowId $fid $isFeedBack]
+			if {-1 == $nextId} {
+				return
+			}
+			set sndNode $pod([addrToPodId $nextId],a,[addrToSubnetId $nextId])
+			set classifier2  [$sndNode entry]
+			$classifier2	removeFlowId	$fid $isFeedBack
+		}
+
+	} elseif { $ssubpid != $dsubpid} {
+		# 同pod， 不同subpod， 4hops, 2path
+		if {$command == $CmdaddFlow} {
+			set nextId [$classifier	addFlowId $fid $isFeedBack]
+		} elseif {$command == $CmdremoveFlow} {
+			set nextId [$classifier removeFlowId $fid $isFeedBack]
+		}
+	}
+
+}
+
 # 根据ftp的src,dst，在相应的switch上添加/删除flow信息，
 # 达成flow based scheduling
-# centrlCtrlFlow ftp {CmdaddFlow/CmdremoveFlow}
-proc centrlCtrlFlow { ftp command} {
+# centrlCtrl ftp {CmdaddFlow/CmdremoveFlow}
+proc centrlCtrl { ftp command} {
 	global ftpRecord pod CmdaddFlow CmdremoveFlow
 	set srcNodeId	[$ftpRecord($ftp,src) id]
 	set dstNodeId	[$ftpRecord($ftp,dst) id]
@@ -176,34 +211,10 @@ proc centrlCtrlFlow { ftp command} {
 	set firstNode	$pod($spid,e,$ssubpid)
 	set classifier  [$firstNode entry]
 
-	if {$spid != $dpid} {
-		# 不同pod内， 6hops, 4paths
-		if {$command == $CmdaddFlow} {
-			set nextId [$classifier	addFlowId	$fid]
-			if {-1 == $nextId} {
-				return
-			}
-			set sndNode $pod([addrToPodId $nextId],a,[addrToSubnetId $nextId])
-			set classifier2  [$sndNode entry]
-			$classifier2	addFlowId	$fid
-		} elseif {$command == $CmdremoveFlow} {
-			set nextId [$classifier removeFlowId $fid]
-			if {-1 == $nextId} {
-				return
-			}
-			set sndNode $pod([addrToPodId $nextId],a,[addrToSubnetId $nextId])
-			set classifier2  [$sndNode entry]
-			$classifier2	removeFlowId	$fid
-		}
-
-	} elseif { $ssubpid != $dsubpid} {
-		# 同pod， 不同subpod， 4hops, 2path
-		if {$command == $CmdaddFlow} {
-			set nextId [$classifier	addFlowId	$fid]
-		} elseif {$command == $CmdremoveFlow} {
-			set nextId [$classifier removeFlowId $fid]
-		}
-	}
+	# 设置发包路径的 flow base
+	centrlCtrlFlow $command $spid $dpid 0
+	# 设置ack路径的 flow base
+	centrlCtrlFlow $command $dpid $spid 1
 }
 
 
