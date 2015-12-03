@@ -207,8 +207,17 @@ proc addrToSubnetId { id {level 3}} {
 
 # 不仅设置路径的flow base
 # isFeedBack 用来表示是否是ack路径
-proc centrlCtrlFlow { command spid dpid isFeedBack} {
-	global ftpRecord pod CmdaddFlow CmdremoveFlow
+proc centrlCtrlFlow { command fid srcNodeId dstNodeId isFeedBack} {
+	global pod CmdaddFlow CmdremoveFlow
+
+	set spid	[addrToPodId $srcNodeId]
+	set ssubpid	[addrToSubnetId $srcNodeId]
+	set dpid	[addrToPodId $dstNodeId]
+	set dsubpid	[addrToSubnetId $dstNodeId]
+
+	set firstNode	$pod($spid,e,$ssubpid)
+	set classifier  [$firstNode entry]
+
 	if {$spid != $dpid} {
 		# 不同pod内， 6hops, 4paths
 		if {$command == $CmdaddFlow} {
@@ -216,15 +225,15 @@ proc centrlCtrlFlow { command spid dpid isFeedBack} {
 			if {-1 == $nextId} {
 				return
 			}
-			set sndNode $pod([addrToPodId $nextId],a,[addrToSubnetId $nextId])
+			set sndNode $pod([addrToPodId $nextId 1],a,[addrToSubnetId $nextId])
 			set classifier2  [$sndNode entry]
-			$classifier2	addFlowId $fid isFeedBack
+			$classifier2	addFlowId $fid $isFeedBack
 		} elseif {$command == $CmdremoveFlow} {
 			set nextId [$classifier removeFlowId $fid $isFeedBack]
 			if {-1 == $nextId} {
 				return
 			}
-			set sndNode $pod([addrToPodId $nextId],a,[addrToSubnetId $nextId])
+			set sndNode $pod([addrToPodId $nextId 1],a,[addrToSubnetId $nextId])
 			set classifier2  [$sndNode entry]
 			$classifier2	removeFlowId	$fid $isFeedBack
 		}
@@ -252,18 +261,11 @@ proc centrlCtrl { ftp command} {
 	if {$srcNodeId == $dstNodeId} {
 		return
 	}
-	set spid	[addrToPodId $srcNodeId]
-	set ssubpid	[addrToSubnetId $srcNodeId]
-	set dpid	[addrToPodId $dstNodeId]
-	set dsubpid	[addrToSubnetId $dstNodeId]
-
-	set firstNode	$pod($spid,e,$ssubpid)
-	set classifier  [$firstNode entry]
 
 	# 设置发包路径的 flow base
-	centrlCtrlFlow $command $spid $dpid 0
+	centrlCtrlFlow $command $fid $srcNodeId $dstNodeId 0
 	# 设置ack路径的 flow base
-	centrlCtrlFlow $command $dpid $spid 1
+	centrlCtrlFlow $command $fid $dstNodeId $srcNodeId 1
 }
 
 
@@ -613,7 +615,7 @@ proc finish { {isNAM yes} } {
         close $qFile($i)
     }
     if {$isNAM} {
-            exec nam simu/prior_test8.nam &
+            #exec nam simu/prior_test8.nam &
     }
     exit 0
 }
@@ -834,7 +836,7 @@ for {set pn 0} {$pn < $podNum} {incr pn} {
         set  classifier  [$pod($pn,a,$i) entry]
         $classifier		setFatTreeK $k
         $classifier		setNodeInfo  $pn $i $t_agg $aggsh
-		$classifier		setFlowBased    $isFlowBased
+		$classifier		setFlowBased    $isFlowBased 1
 		#$classifier 	printNodeInfo
     }
 }
@@ -846,7 +848,7 @@ for {set pn 0} {$pn < $podNum} {incr pn} {
         set  classifier  [$pod($pn,e,$i) entry]
         $classifier		setFatTreeK $k
         $classifier		setNodeInfo  $pn $i $t_edge $aggsh
-		$classifier		setFlowBased    $isFlowBased
+		$classifier		setFlowBased    $isFlowBased 1
     }
 }
 
