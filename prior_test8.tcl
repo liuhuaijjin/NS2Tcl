@@ -225,7 +225,7 @@ proc centrlCtrlFlow { command fid srcNodeId dstNodeId isFeedBack} {
 			if {-1 == $nextId} {
 				return
 			}
-			set sndNode $pod([addrToPodId $nextId 1],a,[addrToSubnetId $nextId])
+			set sndNode $pod([addrToPodId $nextId 1],a,[addrToSubnetId $nextId 1])
 			set classifier2  [$sndNode entry]
 			$classifier2	addFlowId $fid $isFeedBack
 		} elseif {$command == $CmdremoveFlow} {
@@ -233,7 +233,7 @@ proc centrlCtrlFlow { command fid srcNodeId dstNodeId isFeedBack} {
 			if {-1 == $nextId} {
 				return
 			}
-			set sndNode $pod([addrToPodId $nextId 1],a,[addrToSubnetId $nextId])
+			set sndNode $pod([addrToPodId $nextId 1],a,[addrToSubnetId $nextId 1])
 			set classifier2  [$sndNode entry]
 			$classifier2	removeFlowId	$fid $isFeedBack
 		}
@@ -615,7 +615,7 @@ proc finish { {isNAM yes} } {
         close $qFile($i)
     }
     if {$isNAM} {
-            #exec nam simu/prior_test8.nam &
+            exec nam simu/prior_test8.nam &
     }
     exit 0
 }
@@ -831,25 +831,24 @@ for {set i 0} {$i < $hostNum} {incr i} {
 
 # agg switch
 for {set pn 0} {$pn < $podNum} {incr pn} {
-    for {set i 0} {$i < $eachPodNum} {incr i} {
+	for {set i 0} {$i < $eachPodNum} {incr i} {
 		set aggsh [expr $i * $eachPodNum]
-        set  classifier  [$pod($pn,a,$i) entry]
-        $classifier		setFatTreeK $k
-        $classifier		setNodeInfo  $pn $i $t_agg $aggsh
-		$classifier		setFlowBased    $isFlowBased 1
-		#$classifier 	printNodeInfo
-    }
+		set  classifier  [$pod($pn,a,$i) entry]
+		$classifier		setFatTreeK $k
+		$classifier		setNodeInfo $pn $i $t_agg $aggsh
+		$classifier		setFlowBased $isFlowBased 1
+	}
 }
 
 # edge switch
 for {set pn 0} {$pn < $podNum} {incr pn} {
-    set aggsh [$pod($pn,a,0) id]
-    for {set i 0} {$i < $eachPodNum} {incr i} {
-        set  classifier  [$pod($pn,e,$i) entry]
-        $classifier		setFatTreeK $k
-        $classifier		setNodeInfo  $pn $i $t_edge $aggsh
-		$classifier		setFlowBased    $isFlowBased 1
-    }
+	set aggsh [$pod($pn,a,0) id]
+	for {set i 0} {$i < $eachPodNum} {incr i} {
+		set  classifier  [$pod($pn,e,$i) entry]
+		$classifier		setFatTreeK $k
+		$classifier		setNodeInfo $pn $i $t_edge $aggsh
+		$classifier		setFlowBased $isFlowBased 1
+	}
 }
 
 
