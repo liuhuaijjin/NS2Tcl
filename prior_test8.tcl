@@ -559,7 +559,7 @@ $ns rtproto simple
 set		f	[open simu/prior_test8.tr w]
 set		nf	[open simu/prior_test8.nam w]
 # 设置nam记录
-$ns namtrace-all $nf
+#$ns namtrace-all $nf
 #$ns trace-all $f
 
 proc finish { {isNAM yes} } {
@@ -620,7 +620,7 @@ proc finish { {isNAM yes} } {
         close $qFile($i)
     }
     if {$isNAM} {
-            exec nam simu/prior_test8.nam &
+            #exec nam simu/prior_test8.nam &
     }
     exit 0
 }
@@ -713,7 +713,7 @@ set			qRecordCount	0
 #   linkargu
 set		upLinkNum			$eachPodNum
 set		downLinkNum			$eachPodNum
-set		bandWidth			10Mb
+set		bandWidth			100Mb
 set		linkDelay			10ms
 set		queueLimit			50
 #set		queueType				RED
@@ -916,13 +916,13 @@ if { 1 == $HowToReadPoint} {
 
 
 
-set		mapNum			1
-set		reduceNum		1
+set		mapNum			8
+set		reduceNum		3
 
 set		mapWive			0
 set		reduceWive		0
 
-set		flowVol			1
+set		flowVol			20
 
 set		jobDoneNum		0
 array set	jobIng		""

@@ -10,26 +10,32 @@ $AwkFile = "/home/oslo/simu/ns2program/awkpacketLoss.awk";
 $TraceFile = "/home/oslo/simu/prior_test8.tr";
 
 
-system("rm $logFile");
+#system("rm $logFile");
 
 #system("rm /home/hadoop/loaDis.txt");
 $f2=$logFile;
 $totalJob=3;
 $tag=1;
-$runTime=2;
+$runTime=5;
 
-for($i=1; $i<=$runTime; $i=$i+1)
+for($j=1; $j<=8;$j=$j+1)
 {
-	#system("echo	TEST  >> $f2");
-	#system("echo	total : $total   tag : $tag  >> $f2");
-	#system("echo	Number : $i >> $f2");
-	#system("ns $AllocInput 200 >> $f2");
-	system("ns $tclFile $totalJob $totalJob		2 1 0 >> $f2");
-	#system("ns $tclFile $totalJob $totalJob	1 0 0 >> $f2");
-	#system("ns $tclFile $totalJob 0 			1 0 1 >> $f2");
-	#system("awk -f $AwkFile $TraceFile >> $f2");
+	$logFile="/home/oslo/simu/result-pror-8-$j.txt";
+	$f2=$logFile;
+	$totalJob=$j;
 
-#print "\n";
+	for($i=1; $i<=$runTime; $i=$i+1)
+	{
+		#system("echo	TEST  >> $f2");
+		#system("echo	total : $total   tag : $tag  >> $f2");
+		#system("echo	Number : $i >> $f2");
+		#system("ns $AllocInput 200 >> $f2");
+		system("ns $tclFile $totalJob $totalJob		2 1 0 >> $f2");
+		system("ns $tclFile $totalJob $totalJob		1 0 0 >> $f2");
+		system("ns $tclFile $totalJob $totalJob		1 0 1 >> $f2");
+		system("ns $tclFile $totalJob 0 			1 0 1 >> $f2");
+		#system("awk -f $AwkFile $TraceFile >> $f2");
+	}
 }
 # tcl程序接受5个参数
 # argv0		jobnum
@@ -37,15 +43,16 @@ for($i=1; $i<=$runTime; $i=$i+1)
 # argv2		HowToReadPoint	-- 1代表读取文件	-- 2代表随机产生
 # argv3		isflowBased		-- 1代表flowBased	-- 0代表packetBased
 # argv4		isSinglePath	-- 1代表设置成单路径
-# 进行3次实验 
+# 进行4次实验 
 	# 1 : flow		优先级
-	# 1 : spray		优先级
-	# 1 : single	无优先级
-
+	# 2 : spray		优先级
+	# 3 : single	优先级
+	# 4 : single	无优先级
 #每次实验输出格式
 # queueNum :
 #	job1	job2	...		jobN	totalTime
 
+system("shutdown -h now");
 
 
 
