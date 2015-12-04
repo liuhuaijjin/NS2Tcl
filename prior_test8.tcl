@@ -989,7 +989,7 @@ if {"DTPR" == $queueType} {
 
 #$ns at $FirstSet "printScene Scene_1_QueueFair"
 
-#$ns at $FirstSet "sceneStart $FirstStart $flowVol"
+$ns at $FirstSet "sceneStart $FirstStart $flowVol"
 
 $ns at 5000.0 "finish $isNAM"
 
