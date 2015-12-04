@@ -26,7 +26,12 @@
 #
 #	2015-12-01 15:01:55 
 
-
+	# tcl程序接受5个参数
+	# argv0		jobnum
+	# argv1		queueNum
+	# argv2		HowToReadPoint	-- 1代表读取文件	-- 2代表随机产生
+	# argv3		isflowBased		-- 1代表flowBased	-- 0代表packetBased
+	# argv4		isSinglePath	-- 1代表设置成单路径
 
 # -----------------------------------------------------
 
@@ -554,7 +559,7 @@ $ns rtproto simple
 set		f	[open simu/prior_test8.tr w]
 set		nf	[open simu/prior_test8.nam w]
 # 设置nam记录
-#$ns namtrace-all $nf
+$ns namtrace-all $nf
 #$ns trace-all $f
 
 proc finish { {isNAM yes} } {
@@ -615,20 +620,24 @@ proc finish { {isNAM yes} } {
         close $qFile($i)
     }
     if {$isNAM} {
-            #exec nam simu/prior_test8.nam &
+            exec nam simu/prior_test8.nam &
     }
     exit 0
 }
 
 $ns color 0 Black
 $ns color 1000 Blue
-$ns color 1001 Red
-$ns color 1002 green
+$ns color 2000 Red
+$ns color 3000 green
 $ns color 4 yellow
 $ns color 5 brown
 $ns color 6 chocolate
 $ns color 7 gold
 $ns color 8 tan
+
+$ns color 1 Blue
+$ns color 2 Red
+$ns color 3 green
 
 
 #---------TOPOLOGY-------------
@@ -704,7 +713,7 @@ set			qRecordCount	0
 #   linkargu
 set		upLinkNum			$eachPodNum
 set		downLinkNum			$eachPodNum
-set		bandWidth			100Mb
+set		bandWidth			10Mb
 set		linkDelay			10ms
 set		queueLimit			50
 #set		queueType				RED
@@ -806,6 +815,8 @@ set t_edge      4
 set t_nc       	-1
 
 set		isFlowBased		[lindex $argv 3]
+set		isSinglePath	[lindex $argv 4]
+
 # 1 代表flowBased
 # 0 代表packetBased
 
@@ -837,6 +848,9 @@ for {set pn 0} {$pn < $podNum} {incr pn} {
 		$classifier		setFatTreeK $k
 		$classifier		setNodeInfo $pn $i $t_agg $aggsh
 		$classifier		setFlowBased $isFlowBased 1
+		if {1 == $isSinglePath} {
+			$classifier  setNodeType    $t_nc
+		}
 	}
 }
 
@@ -848,6 +862,9 @@ for {set pn 0} {$pn < $podNum} {incr pn} {
 		$classifier		setFatTreeK $k
 		$classifier		setNodeInfo $pn $i $t_edge $aggsh
 		$classifier		setFlowBased $isFlowBased 1
+		if {1 == $isSinglePath} {
+			$classifier  setNodeType    $t_nc
+		}
 	}
 }
 
@@ -899,17 +916,16 @@ if { 1 == $HowToReadPoint} {
 
 
 
-set		mapNum			5
-set		reduceNum		3
+set		mapNum			1
+set		reduceNum		1
 
 set		mapWive			0
 set		reduceWive		0
 
+set		flowVol			1
+
 set		jobDoneNum		0
 array set	jobIng		""
-
-
-set		flowVol			20
 
 
 set sceneStartT		0
@@ -973,7 +989,7 @@ if {"DTPR" == $queueType} {
 
 #$ns at $FirstSet "printScene Scene_1_QueueFair"
 
-$ns at $FirstSet "sceneStart $FirstStart $flowVol"
+#$ns at $FirstSet "sceneStart $FirstStart $flowVol"
 
 $ns at 5000.0 "finish $isNAM"
 

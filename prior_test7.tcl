@@ -439,7 +439,7 @@ set		f	[open simu/prior_test7.tr w]
 set		nf	[open simu/prior_test7.nam w]
 # 设置nam记录
 #$ns namtrace-all $nf
-$ns trace-all $f
+#$ns trace-all $f
 
 proc finish { {isNAM yes} } {
     global ns nf f rec fend
