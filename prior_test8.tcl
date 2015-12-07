@@ -567,10 +567,9 @@ proc finish { {isNAM yes} } {
     global qFile qMonitor
     
     global jobEndTime		sceneNum
-    global jobCmp			totalJobNum
+    global jobCmp	totalJobNum		isSinglePath
     #global seqqq
     global queueNum
-    
     
     for {set i 1} {$i <= $sceneNum} {incr i} {
 		#puts		"\n####Scene No. $i : #######"
@@ -584,7 +583,7 @@ proc finish { {isNAM yes} } {
 		#puts  "\n#####################"
 	}
 	puts ""
-	if {0 == $queueNum} {
+	if {0 == $queueNum && 1 == $isSinglePath} {
 		puts ""
 	}
 	
@@ -916,8 +915,8 @@ if { 1 == $HowToReadPoint} {
 
 
 
-set		mapNum			8
-set		reduceNum		3
+set		mapNum			4
+set		reduceNum		2
 
 set		mapWive			0
 set		reduceWive		0
