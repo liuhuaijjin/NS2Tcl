@@ -1,6 +1,5 @@
 #!/usr/bin/perl
 
-system("ulimit -s 32768");
 $logFile="/home/oslo/simu/result-pror-8.txt";
 $tclFile="/home/oslo/simu/ns2program/prior_test8.tcl";
 
