@@ -714,7 +714,7 @@ set		upLinkNum			$eachPodNum
 set		downLinkNum			$eachPodNum
 set		bandWidth			100Mb
 set		linkDelay			10ms
-set		queueLimit			50
+set		queueLimit			100
 #set		queueType				RED
 #set		queueType				DropTail
 set		queueType			DTPR
@@ -915,7 +915,7 @@ if { 1 == $HowToReadPoint} {
 
 
 
-set		mapNum			4
+set		mapNum			6
 set		reduceNum		2
 
 set		mapWive			0
