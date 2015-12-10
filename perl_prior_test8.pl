@@ -13,7 +13,6 @@ $TraceFile = "/home/oslo/simu/prior_test8.tr";
 
 #system("rm /home/hadoop/loaDis.txt");
 $f2=$logFile;
-$totalJob=3;
 $tag=1;
 $runTime=5;
 
@@ -36,7 +35,6 @@ for($j=1; $j<=8;$j=$j+1)
 		system("ns $tclFile $totalJob	0			1	0	0 >> $f2");
 		system("ns $tclFile $totalJob	$totalJob	1	0	1 >> $f2");
 		system("ns $tclFile $totalJob	0			1	0	1 >> $f2");
-		#system("awk -f $AwkFile $TraceFile >> $f2");
 	}
 }
 # tcl程序接受5个参数
@@ -56,7 +54,8 @@ for($j=1; $j<=8;$j=$j+1)
 # queueNum :
 #	job1	job2	...		jobN	totalTime
 
-system("shutdown -h now");
+system("gnome-screensaver-command -l");
+#system("shutdown -h now");
 
 
 

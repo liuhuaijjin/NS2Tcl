@@ -114,7 +114,7 @@ proc allocNode {job jobId host {record -1}} {
 # ftp中添加一维，表示 ftp状态
 # "r" 代表未开始 "s" 代表正在进行 "d" 代表完成
 # job(jobId,ing) 表示job正在运行的流的个数
-proc createTcpConnection {job_a jobId tcp_a sink_a ftp_a record {wnd 128} {packetSize 1000}} {
+proc createTcpConnection {job_a jobId tcp_a sink_a ftp_a record {wnd 256} {packetSize 1000}} {
     upvar $job_a		arrj
     upvar $tcp_a		arrtcp
     upvar $sink_a		arrsink
@@ -712,9 +712,9 @@ set			qRecordCount	0
 #   linkargu
 set		upLinkNum			$eachPodNum
 set		downLinkNum			$eachPodNum
-set		bandWidth			100Mb
+set		bandWidth			10Mb
 set		linkDelay			10ms
-set		queueLimit			100
+set		queueLimit			50
 #set		queueType				RED
 #set		queueType				DropTail
 set		queueType			DTPR
@@ -915,13 +915,13 @@ if { 1 == $HowToReadPoint} {
 
 
 
-set		mapNum			6
-set		reduceNum		2
+set		mapNum			10
+set		reduceNum		4
 
 set		mapWive			0
 set		reduceWive		0
 
-set		flowVol			20
+set		flowVol			2
 
 set		jobDoneNum		0
 array set	jobIng		""
