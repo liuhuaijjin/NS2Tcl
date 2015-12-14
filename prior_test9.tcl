@@ -914,9 +914,8 @@ if { 1 == $HowToReadPoint} {
 }
 
 
-
-set		mapNum			10
-set		reduceNum		4
+set		mapNum			[lindex $argv 5]
+set		reduceNum		[lindex $argv 6]
 
 set		mapWive			0
 set		reduceWive		0
