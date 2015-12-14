@@ -34,7 +34,7 @@ END {
 	print "testIdmax = " testIdmax " testNum = " testNum " totalJob = " totalJob
 
 	for(i = 1; i <= testIdmax; ++i){
-		print "scene " i " : "
+		print "scene " i " :\t"
 		for(j = 1; j <= totalJob + 1; ++j){
 			printf	(result[i,j] / testNum) "\t"
 		}
