@@ -439,7 +439,7 @@ set		f	[open simu/prior_test7.tr w]
 set		nf	[open simu/prior_test7.nam w]
 # 设置nam记录
 #$ns namtrace-all $nf
-$ns trace-all $f
+#$ns trace-all $f
 
 proc finish { {isNAM yes} } {
     global ns nf f rec fend
@@ -482,10 +482,10 @@ proc finish { {isNAM yes} } {
     #	puts "\n\[Warn\] This is a bad situation. ----- $seqqq----\n"
     #}
     
-    #set nodeAllocFile	/home/hadoop/nslog/nodeAlloc-log.tr
-	#set endlogFile		/home/hadoop/nslog/end-log.tr
-    #file copy $nodeAllocFile  /home/hadoop/simu/ns2_test/record/nodeAlloc-log-$seqqq.txt
-    #file copy $endlogFile  /home/hadoop/simu/ns2_test/record/endlog-$seqqq.txt
+    #set nodeAllocFile	/home/oslo/nslog/nodeAlloc-log.tr
+	#set endlogFile		/home/oslo/nslog/end-log.tr
+    #file copy $nodeAllocFile  /home/oslo/simu/ns2_test/record/nodeAlloc-log-$seqqq.txt
+    #file copy $endlogFile  /home/oslo/simu/ns2_test/record/endlog-$seqqq.txt
     
     $ns flush-trace
     #puts "----------------------------------------"
@@ -752,10 +752,10 @@ puts 	[format "queueNum : %d" $queueNum]
 
 if { 1 == $HowToReadPoint} {
 	# 1 代表读取文件
-	set		allocInputFile		[open  /home/hadoop/simu/alloc.txt r]
+	set		allocInputFile		[open  /home/oslo/simu/alloc.txt r]
 } else {
 	# 2 代表随机产生
-	set		allocInputFile		[open  /home/hadoop/simu/alloc.txt w]
+	set		allocInputFile		[open  /home/oslo/simu/alloc.txt w]
 }
 
 
@@ -775,8 +775,8 @@ set		flowVol				20
 
 set sceneStartT		0
 set sceneEndT		0
-set rec				[open /home/hadoop/simu/nodeAlloc-log.tr w]
-set	fend			[open /home/hadoop/simu/end-log.tr w]
+set rec				[open /home/oslo/simu/nodeAlloc-log.tr w]
+set	fend			[open /home/oslo/simu/end-log.tr w]
 
 array set	jobCmp		""
 array set	jobEndTime		""
