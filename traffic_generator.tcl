@@ -37,7 +37,7 @@ $ns color 8 tan
 set nf [open traffic_generator.nam w]
 set tf [open traffic_generator.tr w]
 $ns namtrace-all $nf
-#$ns trace-all $tf
+$ns trace-all $tf
 
 #Define a 'finish' procedure
 proc finish {} {
@@ -64,6 +64,58 @@ proc record {} {
 
 }
 
+proc changeSpeed {} {
+	global ns
+	set aLink [$ns get-link-arr]
+	array set arrLink $aLink
+
+	puts "\n########"
+	set now [$ns now]
+    puts "$now"
+	parray arrLink
+
+	foreach i [array names arrLink] {
+		#puts "$i  =  [$arrLink($i) bw]"
+		$arrLink($i) setbw 100Mb
+	}
+	puts "########\n"
+}
+
+proc printBw {} {
+	global ns
+	set aLink [$ns get-link-arr]
+	array set arrLink $aLink
+
+	puts "\n########"
+	set now [$ns now]
+    puts "$now"
+	parray arrLink
+
+	foreach i [array names arrLink] {
+		puts "$i  =  [expr [$arrLink($i) bw]  / 1000 / 1000] "
+	}
+	puts "########\n"
+
+}
+
+proc changeBandwidth {} {
+	global ns
+	set aLink [$ns get-link-arr]
+	array set arrLink $aLink
+
+#	set now [$ns now]
+#    puts "$now"
+#	parray arrLink
+
+	foreach i [array names arrLink] {
+		#puts "$i  =  [$arrLink($i) bw]"
+		$arrLink($i) setbw 100Mb
+	}
+	puts "########\n"
+}
+
+
+
 set node_(s1) [$ns node]
 set node_(s2) [$ns node]
 set node_(r1) [$ns node]
@@ -71,11 +123,19 @@ set node_(r2) [$ns node]
 set node_(s3) [$ns node]
 set node_(s4) [$ns node]
 
-$ns duplex-link $node_(s1) $node_(r1) 10Mb 3ms DropTail 
-$ns duplex-link $node_(s2) $node_(r1) 10Mb 3ms DropTail 
-$ns duplex-link $node_(r1) $node_(r2) 10Mb 3ms DTPR
-$ns duplex-link $node_(s3) $node_(r2) 10Mb 3ms DropTail 
-$ns duplex-link $node_(s4) $node_(r2) 10Mb 3ms DropTail 
+set speed 100Mb
+
+set		speed		[lindex $argv 0]
+append speed "Mb"
+puts $speed
+
+
+
+$ns duplex-link $node_(s1) $node_(r1) $speed 3ms DropTail 
+$ns duplex-link $node_(s2) $node_(r1) $speed 3ms DropTail 
+$ns duplex-link $node_(r1) $node_(r2) $speed 3ms DTPR
+$ns duplex-link $node_(s3) $node_(r2) $speed 3ms DropTail 
+$ns duplex-link $node_(s4) $node_(r2) $speed 3ms DropTail 
 
 #Set DTRR queue size to 20
 $ns queue-limit $node_(r1) $node_(r2) 100
@@ -87,11 +147,11 @@ $ns queue-limit $node_(r1) $node_(r2) 100
 
 set aLink [$ns get-link-arr]
 array set arrLink $aLink
-#parray arrLink
-#[$arrLink([$node_(r1) id]:[$node_(r2) id]) queue] queue-test
-#foreach i [array names arrLink] {
-	#puts "$i [$arrLink($i) queue]"
-#}
+parray arrLink
+[$arrLink([$node_(r1) id]:[$node_(r2) id]) queue] queue-test
+foreach i [array names arrLink] {
+	puts "$i [$arrLink($i) queue]"
+}
 
 
 #$ns duplex-link-op $node_(r1) $node_(r2) queuePos 0.5
@@ -179,12 +239,15 @@ $tg0 set shape_ 1.5
 
 
 #Simulation Scenario
-#$ns at 1.0 "$ftp0 send $nbytes"
+$ns at 1.0 "$ftp0 send $nbytes"
 #$ns at 1.0 "$ftp1 send $nbytes"
 #$ns at 1.0 "$ftp2 send $nbytes"
-$ns at 1.0	"$tg0 start"
+#$ns at 1.0	"$tg0 start"
 #$ns at 1.0 "record"
-$ns at 15.0 "finish"
+$ns at 10.0 "printBw"
+$ns at 11.0 "changeSpeed"
+$ns at 12.0 "printBw"
+$ns at 100.0 "finish"
 
 $ns run
 

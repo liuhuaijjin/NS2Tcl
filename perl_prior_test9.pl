@@ -18,6 +18,12 @@ for($redNum=1; $redNum<=4; $redNum=$redNum+1)
 		# j -- job数
 		$resultFile="$testDir/result-pror-8-$j.txt";
 		$totalJob=$j;
+		if($totalJob==1){
+			$runTime=2;
+		}
+		else{
+			$runTime=10;
+		}
 
 		for($i=1; $i<=$runTime; $i=$i+1)
 		{
