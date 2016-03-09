@@ -9,7 +9,10 @@ set b 1
 	#puts "aaa"
 #}
 
-proc poisson { ru } {
+# 泊松分布 ru 默认 1
+proc poisson { {ru 1}  {vv 0} } {
+	puts "泊松分布 $ru vv = $vv"
+
 	set k 0
 	set p 1
 	set l [expr exp([expr -1 * $ru])]
@@ -31,8 +34,11 @@ set V2_GAUSSIAN		0
 set S_GAUSSIAN		0
 set phase_GAUSSIAN 	0
 
-#期望为0.0，方差为1.0
+# 标准正态分布
+# 期望为0.0，方差为1.0
 proc gaussian_NORMAL {} {
+	puts "标准正态分布"
+
 	global V1_GAUSSIAN
 	global V2_GAUSSIAN
 	global S_GAUSSIAN
@@ -60,8 +66,9 @@ proc gaussian_NORMAL {} {
 	return $X
 }
 
+# 正态分布 mean std 默认是 0.0 和 1.0
 proc gaussian { { mean 0.0 } { std 1.0 } } {
-	puts "$mean $std"
+	puts "正态分布 $mean $std"
 
 	set normal [gaussian_NORMAL ]
 	while {$normal < 0} {
@@ -70,9 +77,9 @@ proc gaussian { { mean 0.0 } { std 1.0 } } {
 	return [expr $mean + $normal * $std]
 }
 
-
-proc exponential { { lambda 2} } {
-	puts $lambda
+# 指数分布 lambda默认 2
+proc exponential { { lambda 2}  { vv 0} } {
+	puts "指数分布 $lambda vv = $vv"
 
 	set pV 0
 	while { 1 == 1} {
@@ -86,16 +93,63 @@ proc exponential { { lambda 2} } {
 } 
 
 
-for {set i 0} { $i < 10} { incr i} {
-	#puts [poisson 2]
+# type  :	1 -- 泊松分布 默认
+#			2 -- 正态分布
+#			3 -- 指数分布
+proc changeBandwidth { type {can1 1} {can2 1} } {
+#	global ns
+#	set aLink [$ns get-link-arr]
+#	array set arrLink $aLink
+
+#	set now [$ns now]
+#    puts "$now"
+#	parray arrLink
+	set distribution 0
+
+	if { 1 != $type &&  2 != $type && 3 != $type} {
+		set type 1
+	}
+	
+	if {1 == $type} {
+		set distribution poisson
+	} elseif {2 == $type} {
+		set distribution gaussian
+	} elseif {3 == $type} {
+		set distribution exponential
+	}
+
+	puts $distribution
+#	foreach i [array names arrLink] {
+		set bgbw [expr int ([$distribution $can1 $can2] * 1000 * 1000) ]
+#		$arrLink($i) setbw 100Mb
+#	}
+	puts $bgbw
+	puts "########\n"
+}
+
+if {1 == 1 && 2 != 2} {
+	puts "xxxx"
+} elseif {1 ==1 } {
+	puts "yyyy"
+} elseif {3 == 3} {
+
+}
+
+changeBandwidth 3 2 3
+
+for {set i 0} { $i < -1} { incr i} {
 	#puts [expr rand()]
 	#puts [expr sqrt()]
 	#puts [expr sqrt(28.0 / 3)]
-	#puts [gaussian_NORMAL]
-	puts [gaussian 2 3]
+
+	puts [poisson ]
+	puts [poisson 2]
+	puts [gaussian_NORMAL]
 	puts [gaussian ]
-	#puts [exponential ] 
-	#puts [exponential 0.5] 
+	puts [gaussian 2 3]
+	puts [exponential ] 
+	puts [exponential 0.5] 
+	puts  ""
 }
 
 
