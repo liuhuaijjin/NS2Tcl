@@ -2,42 +2,54 @@
 
 $tclFile="/home/oslo/simu/ns2program/background.tcl";
 
-$TraceFile = "/home/oslo/simu/prior_test8.tr";
-
-$f2=$logFile;
-$tag=1;
 $runTime=5;
 
-# 加入brackground traffic
+$mapNum=0;
+$redNum=0;
 
-for($j=1; $j<=8;$j=$j+1)
+for($redNum=1; $redNum<=4; $redNum=$redNum+1)
 {
-	$logFile="/home/oslo/simu/background-$j.txt";
-	$f2=$logFile;
-	$totalJob=$j;
-
-	for($i=1; $i<=$runTime; $i=$i+1)
+	$mapNum=$redNum*2+2;
+	$testDir="/home/oslo/simu/testResult/m-$mapNum-r-$redNum";
+	system("mkdir -p $testDir");
+	for($j=1; $j<=8;$j=$j+1)
 	{
-		#system("echo	TEST  >> $f2");
-		#system("echo	total : $total   tag : $tag  >> $f2");
-		#system("echo	Number : $i >> $f2");
-		#system("ns $AllocInput 200 >> $f2");
-		# 		ns tclFile	jobNum		优先级	文件读取方式	多路径方式(flow/spray)	路径方式(单/多)
-		system("ns $tclFile $totalJob	$totalJob	2	1	0 >> $f2");
-		system("ns $tclFile $totalJob	0			1	1	0 >> $f2");
-		system("ns $tclFile $totalJob	$totalJob	1	0	0 >> $f2");
-		system("ns $tclFile $totalJob	0			1	0	0 >> $f2");
-		system("ns $tclFile $totalJob	$totalJob	1	0	1 >> $f2");
-		system("ns $tclFile $totalJob	0			1	0	1 >> $f2");
+		# j -- job数
+		$resultFile="$testDir/result-pror-8-$j.txt";
+		$totalJob=$j;
+		if($totalJob==1){
+			$runTime=2;
+		}
+		else{
+			$runTime=5;
+		}
+
+		for($i=1; $i<=$runTime; $i=$i+1)
+		{
+			# 		ns tclFile	jobNum		优先级	文件读取方式	多路径方式(flow/spray)	路径方式(单/多)
+			system("ns $tclFile $totalJob	$totalJob	2	1	0 $mapNum $redNum >> $resultFile");
+			system("ns $tclFile $totalJob	0			1	1	0 $mapNum $redNum >> $resultFile");
+			system("ns $tclFile $totalJob	$totalJob	1	0	0 $mapNum $redNum >> $resultFile");
+			system("ns $tclFile $totalJob	0			1	0	0 $mapNum $redNum >> $resultFile");
+			system("ns $tclFile $totalJob	$totalJob	1	0	1 $mapNum $redNum >> $resultFile");
+			system("ns $tclFile $totalJob	0			1	0	1 $mapNum $redNum >> $resultFile");
+		}
 	}
 }
-# tcl程序接受5个参数
+
+# tcl程序接受7个参数
 # argv0		jobnum
 # argv1		queueNum
 # argv2		HowToReadPoint	-- 1代表读取文件	-- 2代表随机产生
 # argv3		isflowBased		-- 1代表flowBased	-- 0代表packetBased
 # argv4		isSinglePath	-- 1代表设置成单路径
-# 进行6次实验
+# argv5		mapNum			-- 设置job的mapNum数
+# argv6		redNum			-- 设置job的reduceNum数
+
+# 进行４对，　map/reduce
+# 4-1, 6-2, 8-3, 10-4
+# 每对map/reduce，创建文件夹，存放结果数据
+# 在每对map/reduce中， job数从1--8，　每种情况进行6组实验，　每组实验进行10次。
 	# 1 : flow		优先级
 	# 2 : flow		无优先级
 	# 3 : spray		优先级
@@ -49,7 +61,6 @@ for($j=1; $j<=8;$j=$j+1)
 #	job1	job2	...		jobN	totalTime
 
 #system("gnome-screensaver-command -l");
-system("shutdown -h now");
-
+#system("shutdown -h now");
 
 

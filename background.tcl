@@ -534,6 +534,10 @@ proc everyDetect { {numMb 100} } {
         
         incr qRecordCount 10000
     }
+
+	#proc changeBandwidth { type {can1 1} {can2 1} }
+	changeBandwidth 1 1 1
+
 }
 
 
@@ -654,6 +658,23 @@ proc changeBandwidth { type {can1 1} {can2 1} } {
 		#$arrLink($i) setbw [expr 100 * 1000 * 1000]
 	}
 	#puts $bgbw
+}
+
+proc printBw {} {
+	global ns
+	set aLink [$ns get-link-arr]
+	array set arrLink $aLink
+
+	puts "\n########"
+	set now [$ns now]
+    puts "$now"
+	parray arrLink
+
+	foreach i [array names arrLink] {
+		puts "$i  =  [expr [$arrLink($i) bw]  / 1000 / 1000] "
+	}
+	puts "########\n"
+
 }
 
 
@@ -1033,8 +1054,8 @@ if { 1 == $HowToReadPoint} {
 
 
 
-set		mapNum			10
-set		reduceNum		4
+set		mapNum			[lindex $argv 5]
+set		reduceNum		[lindex $argv 6]
 
 set		mapWive			0
 set		reduceWive		0
