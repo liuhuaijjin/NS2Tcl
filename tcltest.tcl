@@ -92,6 +92,14 @@ proc exponential { { lambda 2}  { vv 0} } {
 	return [expr log(1 - $pV) * (-1.0 / $lambda)]
 } 
 
+# 均匀分布 默认 [10 ~ 500) / 1000.0
+# 返回的单位是秒， 保留3位小数
+proc avgDistribution { {min 10}  {max 500} } {
+	puts "均匀分布 min = $min  max = $max"
+	set result [expr (int ($min + rand() * ($max - $min))) * 1.0 / 1000]
+	return [format "%.3f" $result]
+}
+
 
 # type  :	1 -- 泊松分布 默认
 #			2 -- 正态分布
@@ -128,29 +136,33 @@ proc changeBandwidth { type {can1 1} {can2 1} } {
 }
 
 if {1 == 1 && 2 != 2} {
-	puts "xxxx"
+	#puts "xxxx"
 } elseif {1 ==1 } {
-	puts "yyyy"
+	#puts "yyyy"
 } elseif {3 == 3} {
 
 }
 
-changeBandwidth 3 2 3
+#changeBandwidth 3 2 3
 
-for {set i 0} { $i < -1} { incr i} {
+for {set i 0} { $i < 0} { incr i} {
 	#puts [expr rand()]
 	#puts [expr sqrt()]
 	#puts [expr sqrt(28.0 / 3)]
 
-	puts [poisson ]
-	puts [poisson 2]
-	puts [gaussian_NORMAL]
-	puts [gaussian ]
-	puts [gaussian 2 3]
-	puts [exponential ] 
-	puts [exponential 0.5] 
-	puts  ""
+	#puts [poisson ]
+	#puts [poisson 2]
+	#puts [gaussian_NORMAL]
+	#puts [gaussian ]
+	#puts [gaussian 2 3]
+	#puts [exponential ]
+	#puts [exponential 0.5]
+	puts [avgDistribution] 
+	puts [expr 15.0 + [avgDistribution]]
+	puts ""
 }
 
+set xx [expr 15.0 + [avgDistribution]]
+puts $xx
 
 

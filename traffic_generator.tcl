@@ -217,6 +217,12 @@ proc changeBandwidth { type {can1 1} {can2 1} } {
 	#puts $bgbw
 }
 
+proc timeTest {} {
+	global ns
+	set now [$ns now]
+	puts "$now"
+}
+
 set node_(s1) [$ns node]
 set node_(s2) [$ns node]
 set node_(r1) [$ns node]
@@ -347,9 +353,11 @@ $ns at 1.0 "$ftp0 send $nbytes"
 #$ns at 1.0 "$ftp2 send $nbytes"
 #$ns at 1.0	"$tg0 start"
 #$ns at 1.0 "record"
-$ns at 10.0 "printBw"
-$ns at 11.0 "changeBandwidth 1 2 3"
-$ns at 12.0 "printBw"
+
+$ns at 1.2345678 "timeTest" 
+#$ns at 10.0 "printBw"
+#$ns at 11.0 "changeBandwidth 1 2 3"
+#$ns at 12.0 "printBw"
 $ns at 100.0 "finish"
 
 $ns run
