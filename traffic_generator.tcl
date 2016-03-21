@@ -265,22 +265,26 @@ set bandWidth	[expr 50 * 1000 * 1000]
 
 $ns duplex-link $node_(s1) $node_(r1) $bandWidth 3ms DropTail 
 $ns duplex-link $node_(s2) $node_(r1) $bandWidth 3ms DropTail 
-$ns duplex-link $node_(r1) $node_(r2) $bandWidth 3ms DropTail
+$ns duplex-link $node_(r1) $node_(r2) $bandWidth 3ms DTPR
 $ns duplex-link $node_(s3) $node_(r2) $bandWidth 3ms DropTail 
 $ns duplex-link $node_(s4) $node_(r2) $bandWidth 3ms DropTail 
 
-#Set DTRR queue size to 20
+#Set DTPR queue size to 20
 $ns queue-limit $node_(r1) $node_(r2) 100
 
+$ns queue-limit $node_(s1) $node_(r1) 100
+$ns queue-limit $node_(s2) $node_(r1) 100
+$ns queue-limit $node_(s3) $node_(r2) 100
+$ns queue-limit $node_(s4) $node_(r2) 100
 
-#set myq [$ns get-link-queue [$node_(r1) id] [$node_(r2) id]]
+
+set myq [$ns get-link-queue [$node_(r1) id] [$node_(r2) id]]
 #$myq queue-test
-#$myq queue-num 3
-#puts $myq
-#$myq queue-num 4
-#$myq addFidPrior 1
-#$myq addFidPrior 2
-#$myq addFidPrior 3
+$myq queue-num 3
+$myq queue-num 4
+$myq addFidPrior 1
+$myq addFidPrior 2
+$myq addFidPrior 3
 
 #set aLink [$ns get-link-arr]
 #array set arrLink $aLink
