@@ -48,7 +48,7 @@ proc finish {} {
         close $nf
         close $tf
         #Execute nam on the trace file
-        exec nam traffic_generator.nam &
+        #exec nam traffic_generator.nam &
         exit 0
 }
 
@@ -226,20 +226,23 @@ proc timeTest {} {
 
 proc everyDetect {} {
 	global interval ns 
-	global ftp0 ftp1 ftp2
+	global ftp0 ftp1 ftp2 status
 	
 	set now [$ns now]
 
-	if { yes == [$ftp0   isend] } {
+	if { 0 == $status(ftp0) && yes == [$ftp0   isend] } {
 		puts "$now ftp0 end"
+		set status(ftp0) 1
 	}
 	
-	if { yes == [$ftp1   isend] } {
+	if { 0 == $status(ftp1) && yes == [$ftp1   isend] } {
 		puts "$now ftp1 end"
+		set status(ftp1) 1
 	}
 	
-	if { yes == [$ftp2   isend] } {
+	if { 0 == $status(ftp2) && yes == [$ftp2   isend] } {
 		puts "$now ftp2 end"
+		set status(ftp2) 1
 	}
 	
 	$ns at [expr $now+$interval] "everyDetect "
@@ -254,29 +257,30 @@ set node_(r2) [$ns node]
 set node_(s3) [$ns node]
 set node_(s4) [$ns node]
 
-set speed 100Mb
-
 set		speed		[lindex $argv 0]
-append speed "Mb"
-#puts $speed
 
-set bandWidth	[expr 10 * 1000 * 1000]
+set bandWidth	[expr 50 * 1000 * 1000]
 
 
 
 $ns duplex-link $node_(s1) $node_(r1) $bandWidth 3ms DropTail 
 $ns duplex-link $node_(s2) $node_(r1) $bandWidth 3ms DropTail 
-$ns duplex-link $node_(r1) $node_(r2) $bandWidth 3ms DTPR
+$ns duplex-link $node_(r1) $node_(r2) $bandWidth 3ms DropTail
 $ns duplex-link $node_(s3) $node_(r2) $bandWidth 3ms DropTail 
 $ns duplex-link $node_(s4) $node_(r2) $bandWidth 3ms DropTail 
 
 #Set DTRR queue size to 20
 $ns queue-limit $node_(r1) $node_(r2) 100
 
+
 #set myq [$ns get-link-queue [$node_(r1) id] [$node_(r2) id]]
 #$myq queue-test
 #$myq queue-num 3
 #puts $myq
+#$myq queue-num 4
+#$myq addFidPrior 1
+#$myq addFidPrior 2
+#$myq addFidPrior 3
 
 #set aLink [$ns get-link-arr]
 #array set arrLink $aLink
@@ -339,6 +343,15 @@ $ftp1 attach-agent $tcp1
 set ftp2 [new Application/FTP]
 $ftp2 attach-agent $tcp2
 
+
+array set status ""
+set status(ftp0) 0
+set status(ftp1) 0
+set status(ftp2) 0
+
+#parray status
+
+
 #set flowVol [lindex $argv 0]
 set flowVol 20
 
@@ -374,17 +387,18 @@ $tg0 set shape_ 1.5
 
 
 #Simulation Scenario
+$ns at 1.0 "$ftp1 send $nbytes"
 $ns at 1.0 "$ftp0 send $nbytes"
-#$ns at 1.0 "$ftp1 send $nbytes"
 #$ns at 1.0 "$ftp2 send $nbytes"
 #$ns at 1.0	"$tg0 start"
 #$ns at 1.0 "record"
+$ns at 1.0 "everyDetect"
 
-$ns at 1.2345678 "timeTest" 
+#$ns at 1.2345678 "timeTest" 
 #$ns at 10.0 "printBw"
 #$ns at 11.0 "changeBandwidth 1 2 3"
 #$ns at 12.0 "printBw"
-$ns at 100.0 "finish"
+$ns at 500.0 "finish"
 
 $ns run
 
