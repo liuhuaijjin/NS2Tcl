@@ -223,6 +223,30 @@ proc timeTest {} {
 	puts "$now"
 }
 
+
+proc everyDetect {} {
+	global interval ns 
+	global ftp0 ftp1 ftp2
+	
+	set now [$ns now]
+
+	if { yes == [$ftp0   isend] } {
+		puts "$now ftp0 end"
+	}
+	
+	if { yes == [$ftp1   isend] } {
+		puts "$now ftp1 end"
+	}
+	
+	if { yes == [$ftp2   isend] } {
+		puts "$now ftp2 end"
+	}
+	
+	$ns at [expr $now+$interval] "everyDetect "
+	
+
+}
+
 set node_(s1) [$ns node]
 set node_(s2) [$ns node]
 set node_(r1) [$ns node]
@@ -254,9 +278,9 @@ $ns queue-limit $node_(r1) $node_(r2) 100
 #$myq queue-num 3
 #puts $myq
 
-set aLink [$ns get-link-arr]
-array set arrLink $aLink
-parray arrLink
+#set aLink [$ns get-link-arr]
+#array set arrLink $aLink
+#parray arrLink
 #[$arrLink([$node_(r1) id]:[$node_(r2) id]) queue] queue-test
 #foreach i [array names arrLink] {
 	#puts "$i [$arrLink($i) queue]"
@@ -320,6 +344,8 @@ set flowVol 20
 
 set nbytes [expr $flowVol * 1000 * 1000]
 #puts $nbytes
+
+set interval 0.1
 
 
 #proc traffic_gen_init {num src dst} {

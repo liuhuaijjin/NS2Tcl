@@ -10,7 +10,7 @@ $redNum=0;
 for($redNum=1; $redNum<=4; $redNum=$redNum+1)
 {
 	$mapNum=$redNum*2+2;
-	$testDir="/home/oslo/simu/scheduleDelay/m-$mapNum-r-$redNum";
+	$testDir="/home/oslo/simu/testResult/m-$mapNum-r-$redNum";
 	system("mkdir -p $testDir");
 	for($j=1; $j<=8;$j=$j+1)
 	{
