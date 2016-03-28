@@ -4,7 +4,7 @@
 # 
 #
 #	目的：
-#	链路带宽实时变化
+#	linkfailure, 基于background分支的background.tcl。
 #
 #
 #	已有：
@@ -224,13 +224,13 @@ proc centrlCtrlFlow { command fid srcNodeId dstNodeId isFeedBack} {
 	if {$spid != $dpid} {
 		# 不同pod内， 6hops, 4paths
 		if {$command == $CmdaddFlow} {
-			set nextId [$classifier	addFlowId $fid $isFeedBack]
+			set nextId [$classifier	addFlowId $fid $isFeedBack $dstNodeId]
 			if {-1 == $nextId} {
 				return
 			}
 			set sndNode $pod([addrToPodId $nextId 1],a,[addrToSubnetId $nextId 1])
 			set classifier2  [$sndNode entry]
-			$classifier2	addFlowId $fid $isFeedBack
+			$classifier2	addFlowId $fid $isFeedBack $dstNodeId
 		} elseif {$command == $CmdremoveFlow} {
 			set nextId [$classifier removeFlowId $fid $isFeedBack]
 			if {-1 == $nextId} {
@@ -244,7 +244,7 @@ proc centrlCtrlFlow { command fid srcNodeId dstNodeId isFeedBack} {
 	} elseif { $ssubpid != $dsubpid} {
 		# 同pod， 不同subpod， 4hops, 2path
 		if {$command == $CmdaddFlow} {
-			set nextId [$classifier	addFlowId $fid $isFeedBack]
+			set nextId [$classifier	addFlowId $fid $isFeedBack $dstNodeId]
 		} elseif {$command == $CmdremoveFlow} {
 			set nextId [$classifier removeFlowId $fid $isFeedBack]
 		}
@@ -536,7 +536,7 @@ proc everyDetect { {numMb 100} } {
     }
 
 	#proc changeBandwidth { type {can1 1} {can2 1} }
-	changeBandwidth 1 1 1
+	#changeBandwidth 1 1 1
 
 }
 
@@ -678,6 +678,17 @@ proc printBw {} {
 }
 
 
+proc linkFailure { {src 4} {dst 4}} {
+
+    foreach index [array names personA] {
+        puts "personA($index): $personA($index)"
+    }
+
+}
+
+
+
+
 #**********************************************************
 
 
@@ -795,6 +806,8 @@ set		aggShift		[expr $k * $k / 4]
 set		hostShift		[expr 5 * $k * $k / 4]
 set		hostNumInPod	[expr $k * $k / 4]
 set		aggNumInPod		[expr $k * $k / 2]
+
+set     edgeShift       [expr 3 * $k * $k / 4]
 
 # coreSw	记录core 的switch
 # pod		记录agg & edge switch
