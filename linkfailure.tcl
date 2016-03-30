@@ -1212,6 +1212,8 @@ set FirstStart		[expr 1 + $FirstSet]
 set SecondSet		499
 set SecondStart		[expr 1 + $SecondSet]
 
+set lfTime			30
+
 # -----------------------------
 # 获得队列，可以设置队列中优先级的个数。
 set aLink [$ns get-link-arr]
@@ -1229,6 +1231,8 @@ if {"DTPR" == $queueType} {
 #$ns at $FirstSet "printScene Scene_1_QueueFair"
 
 $ns at $FirstSet "sceneStart $FirstStart $flowVol"
+#proc linkFailure { {src 4} {dst 0}}
+$ns at $lfTime "linkFailure 4 0"
 
 $ns at 5000.0 "finish $isNAM"
 

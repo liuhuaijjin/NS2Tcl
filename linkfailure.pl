@@ -12,7 +12,7 @@ for($redNum=1; $redNum<=4; $redNum=$redNum+1)
 	$mapNum=$redNum*2+2;
 	$testDir="/home/oslo/simu/testResult/m-$mapNum-r-$redNum";
 	system("mkdir -p $testDir");
-	for($j=1; $j<=8;$j=$j+1)
+	for($j=4; $j<=8;$j=$j+1)
 	{
 		# j -- job数
 		$resultFile="$testDir/result-pror-8-$j.txt";
@@ -31,8 +31,8 @@ for($redNum=1; $redNum<=4; $redNum=$redNum+1)
 			system("ns $tclFile $totalJob	0			1	1	0 $mapNum $redNum >> $resultFile");
 			system("ns $tclFile $totalJob	$totalJob	1	0	0 $mapNum $redNum >> $resultFile");
 			system("ns $tclFile $totalJob	0			1	0	0 $mapNum $redNum >> $resultFile");
-			system("ns $tclFile $totalJob	$totalJob	1	0	1 $mapNum $redNum >> $resultFile");
-			system("ns $tclFile $totalJob	0			1	0	1 $mapNum $redNum >> $resultFile");
+			#system("ns $tclFile $totalJob	$totalJob	1	0	1 $mapNum $redNum >> $resultFile");
+			#system("ns $tclFile $totalJob	0			1	0	1 $mapNum $redNum >> $resultFile");
 		}
 	}
 }

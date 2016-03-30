@@ -1287,11 +1287,11 @@ createTcp $host(8) $host(0) 3
 startTcp 2
 
 # linkFailure { {src 4} {dst 0}}
-$ns at 10 "linkFailure 12 4"
+$ns at 10 "linkFailure 4 0"
 
-#$ns at 11 "createTcp $host(12) $host(0) 5"
+$ns at 11 "createTcp $host(12) $host(2) 5"
 #$ns at 11 "createTcp $host(9) $host(13) 6"
-#$ns at 11 "startTcp 11"
+$ns at 11 "startTcp 11"
 
 $ns at 5000.0 "finish $isNAM"
 
