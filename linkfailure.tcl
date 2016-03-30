@@ -732,7 +732,7 @@ proc linkFailure { {src 4} {dst 0}} {
 			if {1 == $isFlowBased} {
 				set feedBack 0
 				set flowNum [$classifier getFlowNum4LF $feedBack]
-				for {set j} {$j < $flowNum} {incr j} {
+				for {set j 0} {$j < $flowNum} {incr j} {
 					set flowId [$classifier getFlowId4LF $feedBack]
 					if {-1 == $flowId} {
 						continue;
@@ -750,7 +750,7 @@ proc linkFailure { {src 4} {dst 0}} {
 
 				set feedBack 1
 				set flowNum [$classifier getFlowNum4LF $feedBack]
-				for {set j} {$j < $flowNum} {incr j} {
+				for {set j 0} {$j < $flowNum} {incr j} {
 					set flowId [$classifier getFlowId4LF $feedBack]
 					if {-1 == $flowId} {
 						continue;

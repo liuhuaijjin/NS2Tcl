@@ -720,7 +720,7 @@ proc linkFailure { {src 4} {dst 0}} {
 
         for {set i 0} {$i < $k} {incr i} {
             set  classifier  [$pod($i,a,$linkSrcSubId) entry]
-            puts "[$pod($i,a,$linkSrcSubId) id]"
+            #puts "[$pod($i,a,$linkSrcSubId) id]"
             $classifier enableLinkFailure $src $dst
         }
         
@@ -736,15 +736,17 @@ proc linkFailure { {src 4} {dst 0}} {
 
         for {set i 0} {$i < $k} {incr i} {
 			set  classifier  [$pod($i,e,$linkSrcSubId) entry]
-			puts "[$pod($i,a,$linkSrcSubId) id]"
+			puts "[$pod($i,e,$linkSrcSubId) id]"
 
 			$classifier enableLinkFailure $src $dst
 			
 			if {1 == $isFlowBased} {
 				set feedBack 0
 				set flowNum [$classifier getFlowNum4LF $feedBack]
-				for {set j} {$j < $flowNum} {incr j} {
+				puts "flowNum = $flowNum flow"
+				for {set j 0} {$j < $flowNum} {incr j} {
 					set flowId [$classifier getFlowId4LF $feedBack]
+					puts "flowId = $flowId flow"
 					if {-1 == $flowId} {
 						continue;
 					}
@@ -752,6 +754,7 @@ proc linkFailure { {src 4} {dst 0}} {
 					$classifier2 removeFlowId $flowId $feedBack
 
 					set next [$classifier addFlowIdforLF $flowId $feedBack]
+					puts "next = $next flow"
 					if {-1 == $next} {
 						continue;
 					}
@@ -761,8 +764,10 @@ proc linkFailure { {src 4} {dst 0}} {
 
 				set feedBack 1
 				set flowNum [$classifier getFlowNum4LF $feedBack]
-				for {set j} {$j < $flowNum} {incr j} {
+				puts "flowNum = $flowNum ack"
+				for {set j 0} {$j < $flowNum} {incr j} {
 					set flowId [$classifier getFlowId4LF $feedBack]
+					puts "flowId = $flowId ack"
 					if {-1 == $flowId} {
 						continue;
 					}
@@ -770,6 +775,7 @@ proc linkFailure { {src 4} {dst 0}} {
 					$classifier2 removeFlowId $flowId $feedBack
 
 					set next [$classifier addFlowIdforLF $flowId $feedBack]
+					puts "next = $next ack"
 					if {-1 == $next} {
 						continue;
 					}
@@ -808,7 +814,7 @@ $ns rtproto simple
 set		f	[open simu/linkfailure.tr w]
 set		nf	[open simu/linkfailure.nam w]
 # 设置nam记录
-$ns namtrace-all $nf
+#$ns namtrace-all $nf
 #$ns trace-all $f
 
 proc finish { {isNAM yes} } {
@@ -867,23 +873,20 @@ proc finish { {isNAM yes} } {
     foreach i [array names qFile] {
         close $qFile($i)
     }
-    exec nam simu/linkfailure.nam &
+    #exec nam simu/linkfailure.nam &
     exit 0
 }
 
 $ns color 0 Black
-$ns color 1000 Blue
-$ns color 2000 Red
-$ns color 3000 green
+$ns color 1 Blue
+$ns color 2 Red
+$ns color 3 green
 $ns color 4 yellow
 $ns color 5 brown
 $ns color 6 chocolate
 $ns color 7 gold
 $ns color 8 tan
 
-$ns color 1 Blue
-$ns color 2 Red
-$ns color 3 green
 
 
 #---------TOPOLOGY-------------
@@ -1217,7 +1220,7 @@ array set ftpStatus ""
 proc addFidToDstAddr { fid addr feedBack} {
 	global ns pod
 	
-	puts "addFidToDstAddr $fid $addr $feedBack"
+	#puts "addFidToDstAddr $fid $addr $feedBack"
 	
 	foreach index [array names pod] {
 		set  classifier  [$pod($index) entry]
@@ -1273,8 +1276,8 @@ proc startTcp { wtime} {
 
 #createTcp {NodeSrc NodeDst fid}
 createTcp $host(0) $host(4) 1
-#createTcp $host(4) $host(0) 2
-#createTcp $host(8) $host(0) 3
+createTcp $host(4) $host(0) 2
+createTcp $host(8) $host(0) 3
 
 #createTcp $host(4) $host(6) 4
 
@@ -1282,7 +1285,7 @@ createTcp $host(0) $host(4) 1
 startTcp 2
 
 # linkFailure { {src 4} {dst 0}}
-$ns at 10 "linkFailure 4 0"
+$ns at 10 "linkFailure 12 4"
 
 #$ns at 11 "createTcp $host(12) $host(0) 5"
 #$ns at 11 "createTcp $host(9) $host(13) 6"
