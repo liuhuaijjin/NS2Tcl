@@ -161,7 +161,8 @@ proc createTcpConnection {job_a jobId tcp_a sink_a ftp_a record {wnd 256} {packe
 			if {1 == $isFlowBased} {
 				foreach index [array names pod] {
 					set  classifier  [$pod($index) entry]
-					$classifier addFidToDstAddr $jjobid [expr [$arrj($jobId,r,$j) id] - $hostShift]
+					$classifier addFidToDstAddr $jjobid [expr [$arrj($jobId,r,$j) id] - $hostShift] 0
+					$classifier addFidToDstAddr $jjobid [expr [$arrj($jobId,m,$i) id] - $hostShift] 1
 				}
 			}
 
@@ -222,6 +223,7 @@ proc addrToSubnetId { id {level 3}} {
 # isFeedBack 用来表示是否是ack路径
 proc centrlCtrlFlow { command fid srcNodeId dstNodeId isFeedBack} {
 	global pod CmdaddFlow CmdremoveFlow
+	global hostShift
 
 	set spid	[addrToPodId $srcNodeId]
 	set ssubpid	[addrToSubnetId $srcNodeId]
@@ -234,13 +236,13 @@ proc centrlCtrlFlow { command fid srcNodeId dstNodeId isFeedBack} {
 	if {$spid != $dpid} {
 		# 不同pod内， 6hops, 4paths
 		if {$command == $CmdaddFlow} {
-			set nextId [$classifier	addFlowId $fid $isFeedBack $dstNodeId]
+			set nextId [$classifier	addFlowId $fid $isFeedBack [expr $dstNodeId - $hostShift]]
 			if {-1 == $nextId} {
 				return
 			}
 			set sndNode $pod([addrToPodId $nextId 1],a,[addrToSubnetId $nextId 1])
 			set classifier2  [$sndNode entry]
-			$classifier2	addFlowId $fid $isFeedBack $dstNodeId
+			$classifier2	addFlowId $fid $isFeedBack [expr $dstNodeId - $hostShift]
 		} elseif {$command == $CmdremoveFlow} {
 			set nextId [$classifier removeFlowId $fid $isFeedBack]
 			if {-1 == $nextId} {
@@ -254,7 +256,7 @@ proc centrlCtrlFlow { command fid srcNodeId dstNodeId isFeedBack} {
 	} elseif { $ssubpid != $dsubpid} {
 		# 同pod， 不同subpod， 4hops, 2path
 		if {$command == $CmdaddFlow} {
-			set nextId [$classifier	addFlowId $fid $isFeedBack $dstNodeId]
+			set nextId [$classifier	addFlowId $fid $isFeedBack [expr $dstNodeId - $hostShift]]
 		} elseif {$command == $CmdremoveFlow} {
 			set nextId [$classifier removeFlowId $fid $isFeedBack]
 		}
@@ -506,16 +508,16 @@ proc everyDetect { {numMb 100} } {
 			#	如果最高优先级job完成
 			#	次高优先级成为最高优先级
 			#	2015年06月12日 星期五 09时46分46秒 
-			if {$queueNum > 0 && $seq == $TopPriorityNum} {
-				set nextTop [expr 1 + $TopPriorityNum]
-				for {set ii $nextTop} {$ii <= $totalJobNum} {incr ii} {
-					if {$jobIng($ii) == 0} {
-						set TopPriorityNum $ii
-						setTopPriority $TopPriorityNum
-						break
-					}
-				}
-			}
+			#if {$queueNum > 0 && $seq == $TopPriorityNum} {
+				#set nextTop [expr 1 + $TopPriorityNum]
+				#for {set ii $nextTop} {$ii <= $totalJobNum} {incr ii} {
+					#if {$jobIng($ii) == 0} {
+						#set TopPriorityNum $ii
+						#setTopPriority $TopPriorityNum
+						#break
+					#}
+				#}
+			#}
 			
         }
     }
@@ -691,7 +693,7 @@ proc printBw {} {
 proc linkFailure { {src 4} {dst 0}} {
 
     global pod edgeShift aggShift hostShift
-    global ns eachPodNum k
+    global ns eachPodNum k isFlowBased
 
     # 设置相应节点 void enableLinkFailure(int linkSrcId, int linkDstId);
     # 对于 flowbased 存在的分配要重新分配
@@ -699,10 +701,10 @@ proc linkFailure { {src 4} {dst 0}} {
     #pod($i,a,$j)
 
     # 1 表示CORE_LINK, 2 表示AGG_LINK
-    set linkFailureType
-    set linkPodNum
-    set linkSrcSubId
-    set linkDstSubId
+    set linkFailureType		""
+    set linkPodNum			""
+    set linkSrcSubId		""
+    set linkDstSubId		""
 
     # 只需修改对应pod 内 对应 srcSubid 的节点
 
@@ -714,9 +716,11 @@ proc linkFailure { {src 4} {dst 0}} {
 
         for {set i 0} {$i < $k} {incr i} {
             set  classifier  [$pod($i,a,$linkSrcSubId) entry]
+            puts "[$pod($i,a,$linkSrcSubId) id]"
             $classifier enableLinkFailure $src $dst
         }
-    } else if {$src >= $edgeShift && $src < $hostShift} {
+
+    } elseif {$src >= $edgeShift && $src < $hostShift} {
         set linkFailureType 2
 		set linkSrcSubId [expr ($src - $edgeShift) % $eachPodNum ]
         set linkDstSubId [expr ($dst - $aggShift) % $eachPodNum ]
@@ -724,40 +728,43 @@ proc linkFailure { {src 4} {dst 0}} {
         for {set i 0} {$i < $k} {incr i} {
 			set  classifier  [$pod($i,e,$linkSrcSubId) entry]
 			$classifier enableLinkFailure $src $dst
-			set feedBack 0
-			set flowNum [$classifier getFlowNum4LF $feedBack]
-			for {set j} {$j < $flowNum} {incr j} {
-				set flowId [$classifier getFlowId4LF $feedBack]
-				if {-1 == $flowId} {
-					continue;
-				}
-				set  classifier2  [$pod($i,a,$linkDstSubId) entry]
-				$classifier2 removeFlowId $flowId $feedBack
 
-				set next [$classifier addFlowIdforLF $flowId $feedBack]
-				if {-1 == $next} {
-					continue;
-				}
-				set  classifier2  [$pod($i,a,$next) entry]
-				$classifier2 addFlowId $flowId $feedBack -1
-			}
+			if {1 == $isFlowBased} {
+				set feedBack 0
+				set flowNum [$classifier getFlowNum4LF $feedBack]
+				for {set j} {$j < $flowNum} {incr j} {
+					set flowId [$classifier getFlowId4LF $feedBack]
+					if {-1 == $flowId} {
+						continue;
+					}
+					set  classifier2  [$pod($i,a,$linkDstSubId) entry]
+					$classifier2 removeFlowId $flowId $feedBack
 
-			set feedBack 1
-			set flowNum [$classifier getFlowNum4LF $feedBack]
-			for {set j} {$j < $flowNum} {incr j} {
-				set flowId [$classifier getFlowId4LF $feedBack]
-				if {-1 == $flowId} {
-					continue;
+					set next [$classifier addFlowIdforLF $flowId $feedBack]
+					if {-1 == $next} {
+						continue;
+					}
+					set  classifier2  [$pod($i,a,$next) entry]
+					$classifier2 addFlowId $flowId $feedBack -1
 				}
-				set  classifier2  [$pod($i,a,$linkDstSubId) entry]
-				$classifier2 removeFlowId $flowId $feedBack
 
-				set next [$classifier addFlowIdforLF $flowId $feedBack]
-				if {-1 == $next} {
-					continue;
+				set feedBack 1
+				set flowNum [$classifier getFlowNum4LF $feedBack]
+				for {set j} {$j < $flowNum} {incr j} {
+					set flowId [$classifier getFlowId4LF $feedBack]
+					if {-1 == $flowId} {
+						continue;
+					}
+					set  classifier2  [$pod($i,a,$linkDstSubId) entry]
+					$classifier2 removeFlowId $flowId $feedBack
+
+					set next [$classifier addFlowIdforLF $flowId $feedBack]
+					if {-1 == $next} {
+						continue;
+					}
+					set  classifier2  [$pod($i,a,$next) entry]
+					$classifier2 addFlowId $flowId $feedBack -1
 				}
-				set  classifier2  [$pod($i,a,$next) entry]
-				$classifier2 addFlowId $flowId $feedBack -1
 			}
         }
     }

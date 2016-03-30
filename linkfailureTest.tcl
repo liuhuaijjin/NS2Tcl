@@ -22,14 +22,10 @@
 #
 #
 #
-#	2015-12-01 15:01:55 
+#	2016-03-30 15:01:55 
 
-	# tcl程序接受5个参数
-	# argv0		jobnum
-	# argv1		queueNum
-	# argv2		HowToReadPoint	-- 1代表读取文件	-- 2代表随机产生
-	# argv3		isflowBased		-- 1代表flowBased	-- 0代表packetBased
-	# argv4		isSinglePath	-- 1代表设置成单路径
+	# tcl程序接受1个参数
+	# argv1		isflowBased		-- 1代表flowBased	-- 0代表packetBased
 
 # -----------------------------------------------------
 
@@ -161,7 +157,8 @@ proc createTcpConnection {job_a jobId tcp_a sink_a ftp_a record {wnd 256} {packe
 			if {1 == $isFlowBased} {
 				foreach index [array names pod] {
 					set  classifier  [$pod($index) entry]
-					$classifier addFidToDstAddr $jjobid [expr [$arrj($jobId,r,$j) id] - $hostShift]
+					$classifier addFidToDstAddr $jjobid [expr [$arrj($jobId,r,$j) id] - $hostShift] 0
+					$classifier addFidToDstAddr $jjobid [expr [$arrj($jobId,m,$i) id] - $hostShift] 1
 				}
 			}
 
@@ -222,6 +219,7 @@ proc addrToSubnetId { id {level 3}} {
 # isFeedBack 用来表示是否是ack路径
 proc centrlCtrlFlow { command fid srcNodeId dstNodeId isFeedBack} {
 	global pod CmdaddFlow CmdremoveFlow
+	global hostShift
 
 	set spid	[addrToPodId $srcNodeId]
 	set ssubpid	[addrToSubnetId $srcNodeId]
@@ -234,13 +232,13 @@ proc centrlCtrlFlow { command fid srcNodeId dstNodeId isFeedBack} {
 	if {$spid != $dpid} {
 		# 不同pod内， 6hops, 4paths
 		if {$command == $CmdaddFlow} {
-			set nextId [$classifier	addFlowId $fid $isFeedBack $dstNodeId]
+			set nextId [$classifier	addFlowId $fid $isFeedBack [expr $dstNodeId - $hostShift]]
 			if {-1 == $nextId} {
 				return
 			}
 			set sndNode $pod([addrToPodId $nextId 1],a,[addrToSubnetId $nextId 1])
 			set classifier2  [$sndNode entry]
-			$classifier2	addFlowId $fid $isFeedBack $dstNodeId
+			$classifier2	addFlowId $fid $isFeedBack [expr $dstNodeId - $hostShift]
 		} elseif {$command == $CmdremoveFlow} {
 			set nextId [$classifier removeFlowId $fid $isFeedBack]
 			if {-1 == $nextId} {
@@ -254,7 +252,7 @@ proc centrlCtrlFlow { command fid srcNodeId dstNodeId isFeedBack} {
 	} elseif { $ssubpid != $dsubpid} {
 		# 同pod， 不同subpod， 4hops, 2path
 		if {$command == $CmdaddFlow} {
-			set nextId [$classifier	addFlowId $fid $isFeedBack $dstNodeId]
+			set nextId [$classifier	addFlowId $fid $isFeedBack [expr $dstNodeId - $hostShift]]
 		} elseif {$command == $CmdremoveFlow} {
 			set nextId [$classifier removeFlowId $fid $isFeedBack]
 		}
@@ -506,16 +504,16 @@ proc everyDetect { {numMb 100} } {
 			#	如果最高优先级job完成
 			#	次高优先级成为最高优先级
 			#	2015年06月12日 星期五 09时46分46秒 
-			if {$queueNum > 0 && $seq == $TopPriorityNum} {
-				set nextTop [expr 1 + $TopPriorityNum]
-				for {set ii $nextTop} {$ii <= $totalJobNum} {incr ii} {
-					if {$jobIng($ii) == 0} {
-						set TopPriorityNum $ii
-						setTopPriority $TopPriorityNum
-						break
-					}
-				}
-			}
+			#if {$queueNum > 0 && $seq == $TopPriorityNum} {
+				#set nextTop [expr 1 + $TopPriorityNum]
+				#for {set ii $nextTop} {$ii <= $totalJobNum} {incr ii} {
+					#if {$jobIng($ii) == 0} {
+						#set TopPriorityNum $ii
+						#setTopPriority $TopPriorityNum
+						#break
+					#}
+				#}
+			#}
 			
         }
     }
@@ -691,18 +689,21 @@ proc printBw {} {
 proc linkFailure { {src 4} {dst 0}} {
 
     global pod edgeShift aggShift hostShift
-    global ns eachPodNum k
+    global ns eachPodNum k isFlowBased
 
     # 设置相应节点 void enableLinkFailure(int linkSrcId, int linkDstId);
     # 对于 flowbased 存在的分配要重新分配
 
     #pod($i,a,$j)
 
+	set now [$ns now]
+	puts "$now link failure  $src --- $dst"
+
     # 1 表示CORE_LINK, 2 表示AGG_LINK
-    set linkFailureType
-    set linkPodNum
-    set linkSrcSubId
-    set linkDstSubId
+    set linkFailureType		""
+    set linkPodNum			""
+    set linkSrcSubId		""
+    set linkDstSubId		""
 
     # 只需修改对应pod 内 对应 srcSubid 的节点
 
@@ -711,53 +712,70 @@ proc linkFailure { {src 4} {dst 0}} {
         set linkFailureType 1
         set linkSrcSubId [expr ($src - $aggShift) % $eachPodNum ]
         set linkPodNum [expr ($src - $aggShift) / $eachPodNum ]
+		
+		puts "core_link"
+		puts "linkSrcSubId = $linkSrcSubId"
+		puts "linkPodNum = $linkPodNum"
+
 
         for {set i 0} {$i < $k} {incr i} {
             set  classifier  [$pod($i,a,$linkSrcSubId) entry]
+            puts "[$pod($i,a,$linkSrcSubId) id]"
             $classifier enableLinkFailure $src $dst
         }
-    } else if {$src >= $edgeShift && $src < $hostShift} {
+        
+    } elseif {$src >= $edgeShift && $src < $hostShift} {
         set linkFailureType 2
 		set linkSrcSubId [expr ($src - $edgeShift) % $eachPodNum ]
         set linkDstSubId [expr ($dst - $aggShift) % $eachPodNum ]
+        
+        puts "agg_link"
+		puts "linkSrcSubId = $linkSrcSubId"
+		puts "linkDstSubId = $linkDstSubId"
+        
 
         for {set i 0} {$i < $k} {incr i} {
 			set  classifier  [$pod($i,e,$linkSrcSubId) entry]
+			puts "[$pod($i,a,$linkSrcSubId) id]"
+
 			$classifier enableLinkFailure $src $dst
-			set feedBack 0
-			set flowNum [$classifier getFlowNum4LF $feedBack]
-			for {set j} {$j < $flowNum} {incr j} {
-				set flowId [$classifier getFlowId4LF $feedBack]
-				if {-1 == $flowId} {
-					continue;
-				}
-				set  classifier2  [$pod($i,a,$linkDstSubId) entry]
-				$classifier2 removeFlowId $flowId $feedBack
+			
+			if {1 == $isFlowBased} {
+				set feedBack 0
+				set flowNum [$classifier getFlowNum4LF $feedBack]
+				for {set j} {$j < $flowNum} {incr j} {
+					set flowId [$classifier getFlowId4LF $feedBack]
+					if {-1 == $flowId} {
+						continue;
+					}
+					set  classifier2  [$pod($i,a,$linkDstSubId) entry]
+					$classifier2 removeFlowId $flowId $feedBack
 
-				set next [$classifier addFlowIdforLF $flowId $feedBack]
-				if {-1 == $next} {
-					continue;
+					set next [$classifier addFlowIdforLF $flowId $feedBack]
+					if {-1 == $next} {
+						continue;
+					}
+					set  classifier2  [$pod($i,a,$next) entry]
+					$classifier2 addFlowId $flowId $feedBack -1
 				}
-				set  classifier2  [$pod($i,a,$next) entry]
-				$classifier2 addFlowId $flowId $feedBack -1
-			}
 
-			set feedBack 1
-			set flowNum [$classifier getFlowNum4LF $feedBack]
-			for {set j} {$j < $flowNum} {incr j} {
-				set flowId [$classifier getFlowId4LF $feedBack]
-				if {-1 == $flowId} {
-					continue;
-				}
-				set  classifier2  [$pod($i,a,$linkDstSubId) entry]
-				$classifier2 removeFlowId $flowId $feedBack
+				set feedBack 1
+				set flowNum [$classifier getFlowNum4LF $feedBack]
+				for {set j} {$j < $flowNum} {incr j} {
+					set flowId [$classifier getFlowId4LF $feedBack]
+					if {-1 == $flowId} {
+						continue;
+					}
+					set  classifier2  [$pod($i,a,$linkDstSubId) entry]
+					$classifier2 removeFlowId $flowId $feedBack
 
-				set next [$classifier addFlowIdforLF $flowId $feedBack]
-				if {-1 == $next} {
-					continue;
+					set next [$classifier addFlowIdforLF $flowId $feedBack]
+					if {-1 == $next} {
+						continue;
+					}
+					set  classifier2  [$pod($i,a,$next) entry]
+					$classifier2 addFlowId $flowId $feedBack -1
 				}
-				set  classifier2  [$pod($i,a,$next) entry]
-				$classifier2 addFlowId $flowId $feedBack -1
 			}
         }
     }
@@ -790,7 +808,7 @@ $ns rtproto simple
 set		f	[open simu/linkfailure.tr w]
 set		nf	[open simu/linkfailure.nam w]
 # 设置nam记录
-#$ns namtrace-all $nf
+$ns namtrace-all $nf
 #$ns trace-all $f
 
 proc finish { {isNAM yes} } {
@@ -849,9 +867,7 @@ proc finish { {isNAM yes} } {
     foreach i [array names qFile] {
         close $qFile($i)
     }
-    if {$isNAM} {
-            #exec nam simu/prior_test8.nam &
-    }
+    exec nam simu/linkfailure.nam &
     exit 0
 }
 
@@ -946,7 +962,7 @@ set			qRecordCount	0
 set		upLinkNum			$eachPodNum
 set		downLinkNum			$eachPodNum
 #set		bandWidth			100Mb
-set		bandWidth			[expr 100 * 1000 * 1000]
+set		bandWidth			[expr 50 * 1000 * 1000]
 set		linkDelay			10ms
 set		queueLimit			100
 #set		queueType				RED
@@ -1047,8 +1063,8 @@ set t_agg       3
 set t_edge      4
 set t_nc       	-1
 
-set		isFlowBased		[lindex $argv 3]
-set		isSinglePath	[lindex $argv 4]
+set		isFlowBased		1
+set		isSinglePath	0
 
 # 1 代表flowBased
 # 0 代表packetBased
@@ -1124,9 +1140,9 @@ proc resetAllLast {} {
 #set		seqqq				[lindex $argv 0]
 #set		totalJobNum		6
 
-set		totalJobNum		[lindex $argv 0]
-set		queueNum		[lindex $argv 1]
-set		HowToReadPoint	[lindex $argv 2]
+set		totalJobNum		1
+set		queueNum		8
+set		HowToReadPoint	1
 
 set		TopPriorityNum	1
 
@@ -1139,18 +1155,9 @@ puts 	[format "queueNum : %d" $queueNum]
 #puts $queueNum
 #puts $HowToReadPoint
 
-if { 1 == $HowToReadPoint} {
-	# 1 代表读取文件
-	set		allocInputFile		[open  /home/oslo/simu/alloc.txt r]
-} else {
-	# 2 代表随机产生
-	set		allocInputFile		[open  /home/oslo/simu/alloc.txt w]
-}
 
-
-
-set		mapNum			[lindex $argv 5]
-set		reduceNum		[lindex $argv 6]
+set		mapNum			1
+set		reduceNum		1
 
 set		mapWive			0
 set		reduceWive		0
@@ -1170,35 +1177,7 @@ array set	jobCmp		""
 array set	jobEndTime		""
 set		sceneNum		0
 
-array set ftpRecord ""
-
-#---------JOB ARGUMENTS---------
-
-# 一次实验 ，场景设置，分配节点，建立链接
-# jobId 从1开始。
-
-for {set i 1} {$i <= $totalJobNum} {incr i} {
-    setMapNum job $i	$mapNum 	0
-    setReduceNum job $i $reduceNum		0
-    #proc allocNode {job jobId l3 {record -1}}
-    allocNode job $i host	$rec 
-    #proc createTcpConnection {job_a jobId tcp_a sink_a ftp_a record {wnd 512} {packetSize 5000}}
-    createTcpConnection job $i tcp sink ftp $rec 
-}
-
-
-if { 2 == $HowToReadPoint} {
-	# 2 代表随机产生
-	flush $rec
-	flush $allocInputFile
-}
-
-
-
 set isNAM yes
-if { ![info exists isNAM] } {
-    set isNAM no
-}
 
 set FirstSet			9
 set FirstStart		[expr 1 + $FirstSet]
@@ -1220,9 +1199,94 @@ if {"DTPR" == $queueType} {
 	
 }
 
-#$ns at $FirstSet "printScene Scene_1_QueueFair"
+$ns color 0 Black
+$ns color 1 Blue
+$ns color 2 Red
+$ns color 3 green
+$ns color 4 yellow
+$ns color 5 brown
+$ns color 6 chocolate
+$ns color 7 gold
+$ns color 8 tan
 
-$ns at $FirstSet "sceneStart $FirstStart $flowVol"
+set nbytes [expr $flowVol * 1000 * 1000]
+array set ftpLink ""
+array set ftpNode ""
+array set ftpStatus ""
+
+proc addFidToDstAddr { fid addr feedBack} {
+	global ns pod
+	
+	puts "addFidToDstAddr $fid $addr $feedBack"
+	
+	foreach index [array names pod] {
+		set  classifier  [$pod($index) entry]
+		$classifier addFidToDstAddr $fid $addr $feedBack
+	}
+}
+
+proc createTcp {NodeSrc NodeDst fid} {
+	global ns ftpLink ftpNode ftpStatus
+	global hostShift
+
+	set tcp0 [new Agent/TCP]
+	$ns attach-agent $NodeSrc $tcp0
+
+	set sink0 [new Agent/TCPSink]
+	$ns attach-agent $NodeDst $sink0
+	
+	$ns connect $tcp0 $sink0
+	$tcp0 set fid_ $fid
+	$tcp0 set window_ 128
+	$tcp0 set packetSize_ 1000
+	
+	set ftp0 [new Application/FTP]
+	$ftp0 attach-agent $tcp0
+	
+	set ftpLink($fid) $ftp0
+	set ftpStatus($fid)		0
+	set ftpNode($fid,src) [$NodeSrc id]
+	set ftpNode($fid,dst) [$NodeDst id]
+	
+	#proc addFidToDstAddr { fid addr feedBack}
+	addFidToDstAddr $fid [expr [$NodeDst id] - $hostShift] 0
+	addFidToDstAddr $fid [expr [$NodeSrc id] - $hostShift] 1
+	
+	puts "tcp $fid: [$NodeSrc id]   ----    [$NodeDst id]"
+}
+
+proc startTcp { wtime} {
+	global ns ftpLink ftpNode ftpStatus
+	global nbytes CmdaddFlow
+	
+	foreach index [array names ftpLink] {
+		if { 1 == $ftpStatus($index)} {
+			continue;
+		}
+		#proc centrlCtrlFlow { command fid srcNodeId dstNodeId isFeedBack}
+		centrlCtrlFlow $CmdaddFlow $index $ftpNode($index,src) $ftpNode($index,dst) 0
+		centrlCtrlFlow $CmdaddFlow $index $ftpNode($index,dst) $ftpNode($index,src) 1
+		$ns at $wtime "$ftpLink($index) send $nbytes"
+		set ftpStatus($index)		1
+	}
+}
+
+#createTcp {NodeSrc NodeDst fid}
+createTcp $host(0) $host(4) 1
+#createTcp $host(4) $host(0) 2
+#createTcp $host(8) $host(0) 3
+
+#createTcp $host(4) $host(6) 4
+
+
+startTcp 2
+
+# linkFailure { {src 4} {dst 0}}
+$ns at 10 "linkFailure 4 0"
+
+#$ns at 11 "createTcp $host(12) $host(0) 5"
+#$ns at 11 "createTcp $host(9) $host(13) 6"
+#$ns at 11 "startTcp 11"
 
 $ns at 5000.0 "finish $isNAM"
 
