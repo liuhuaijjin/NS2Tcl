@@ -716,7 +716,6 @@ proc linkFailure { {src 4} {dst 0}} {
 
         for {set i 0} {$i < $k} {incr i} {
             set  classifier  [$pod($i,a,$linkSrcSubId) entry]
-            puts "[$pod($i,a,$linkSrcSubId) id]"
             $classifier enableLinkFailure $src $dst
         }
 

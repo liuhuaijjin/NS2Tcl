@@ -814,7 +814,7 @@ $ns rtproto simple
 set		f	[open simu/linkfailure.tr w]
 set		nf	[open simu/linkfailure.nam w]
 # 设置nam记录
-#$ns namtrace-all $nf
+$ns namtrace-all $nf
 #$ns trace-all $f
 
 proc finish { {isNAM yes} } {
@@ -873,7 +873,7 @@ proc finish { {isNAM yes} } {
     foreach i [array names qFile] {
         close $qFile($i)
     }
-    #exec nam simu/linkfailure.nam &
+    exec nam simu/linkfailure.nam &
     exit 0
 }
 
@@ -1066,7 +1066,7 @@ set t_agg       3
 set t_edge      4
 set t_nc       	-1
 
-set		isFlowBased		1
+set		isFlowBased		0
 set		isSinglePath	0
 
 # 1 代表flowBased
@@ -1260,15 +1260,17 @@ proc createTcp {NodeSrc NodeDst fid} {
 
 proc startTcp { wtime} {
 	global ns ftpLink ftpNode ftpStatus
-	global nbytes CmdaddFlow
+	global nbytes CmdaddFlow isFlowBased
 	
 	foreach index [array names ftpLink] {
 		if { 1 == $ftpStatus($index)} {
 			continue;
 		}
-		#proc centrlCtrlFlow { command fid srcNodeId dstNodeId isFeedBack}
-		centrlCtrlFlow $CmdaddFlow $index $ftpNode($index,src) $ftpNode($index,dst) 0
-		centrlCtrlFlow $CmdaddFlow $index $ftpNode($index,dst) $ftpNode($index,src) 1
+		if {1 == $isFlowBased} {
+			#proc centrlCtrlFlow { command fid srcNodeId dstNodeId isFeedBack}
+			centrlCtrlFlow $CmdaddFlow $index $ftpNode($index,src) $ftpNode($index,dst) 0
+			centrlCtrlFlow $CmdaddFlow $index $ftpNode($index,dst) $ftpNode($index,src) 1
+		}
 		$ns at $wtime "$ftpLink($index) send $nbytes"
 		set ftpStatus($index)		1
 	}
