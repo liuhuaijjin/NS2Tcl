@@ -6,6 +6,10 @@ BEGIN{
 	totalJob = -1;
 }
 
+# testNum  一组实验的次数
+# testId 表示每组内的id
+# testIdmax 对比实验的个数
+
 # NF 代表列数
 {
 	if (NF > 0 && $1 != "queueNum") {

@@ -774,7 +774,41 @@ proc linkFailure { {src 4} {dst 0}} {
 
 }
 
+# link 恢复
+proc linkRecovery { {src 4} {dst 0}} {
 
+    global pod edgeShift aggShift hostShift
+    global ns eachPodNum k isFlowBased
+
+    # 设置相应节点 void disableLinkFailure();
+    # 对于 flowbased 存在的分配, 暂时没有重新分配
+
+    # 1 表示CORE_LINK, 2 表示AGG_LINK
+    set linkFailureType		""
+    set linkPodNum			""
+    set linkSrcSubId		""
+    set linkDstSubId		""
+
+    # 判断 断开链路的类型 CORE_LINK or AGG_LINK
+    if { $src >= $aggShift && $src < $edgeShift} {
+        set linkFailureType 1
+        set linkSrcSubId [expr ($src - $aggShift) % $eachPodNum ]
+        set linkPodNum [expr ($src - $aggShift) / $eachPodNum ]
+        for {set i 0} {$i < $k} {incr i} {
+            set  classifier  [$pod($i,a,$linkSrcSubId) entry]
+            $classifier disableLinkFailure
+        }
+    } elseif {$src >= $edgeShift && $src < $hostShift} {
+        set linkFailureType 2
+		set linkSrcSubId [expr ($src - $edgeShift) % $eachPodNum ]
+        set linkDstSubId [expr ($dst - $aggShift) % $eachPodNum ]
+
+        for {set i 0} {$i < $k} {incr i} {
+			set  classifier  [$pod($i,e,$linkSrcSubId) entry]
+			$classifier disableLinkFailure
+        }
+    }
+}
 
 
 #**********************************************************
@@ -1209,10 +1243,15 @@ if { ![info exists isNAM] } {
 set FirstSet			9
 set FirstStart		[expr 1 + $FirstSet]
 
-set SecondSet		499
-set SecondStart		[expr 1 + $SecondSet]
+# 设置 linkFailure 起始时间
+set lfTime			[expr $FirstStart + 10]
 
-set lfTime			30
+# 设置 linkRecovery 时间
+set lfRecoveryTime	[expr $lfTime + 10]
+
+# 设置 linkFailure 的 link的id， 注意这里规定 srcId > dstId
+set lfSrcId			4
+set lfDstId			0
 
 # -----------------------------
 # 获得队列，可以设置队列中优先级的个数。
@@ -1232,7 +1271,9 @@ if {"DTPR" == $queueType} {
 
 $ns at $FirstSet "sceneStart $FirstStart $flowVol"
 #proc linkFailure { {src 4} {dst 0}}
-$ns at $lfTime "linkFailure 4 0"
+$ns at $lfTime "linkFailure $lfSrcId $lfDstId"
+#proc linkRecovery { {src 4} {dst 0}}
+$ns at $lfRecoveryTime "linkRecovery $lfSrcId $lfDstId"
 
 $ns at 5000.0 "finish $isNAM"
 

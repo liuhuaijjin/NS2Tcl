@@ -792,6 +792,41 @@ proc linkFailure { {src 4} {dst 0}} {
 
 }
 
+# link 恢复
+proc linkRecovery { {src 4} {dst 0}} {
+
+    global pod edgeShift aggShift hostShift
+    global ns eachPodNum k isFlowBased
+
+    # 设置相应节点 void disableLinkFailure();
+    # 对于 flowbased 存在的分配, 暂时没有重新分配
+
+    # 1 表示CORE_LINK, 2 表示AGG_LINK
+    set linkFailureType		""
+    set linkPodNum			""
+    set linkSrcSubId		""
+    set linkDstSubId		""
+
+    # 判断 断开链路的类型 CORE_LINK or AGG_LINK
+    if { $src >= $aggShift && $src < $edgeShift} {
+        set linkFailureType 1
+        set linkSrcSubId [expr ($src - $aggShift) % $eachPodNum ]
+        set linkPodNum [expr ($src - $aggShift) / $eachPodNum ]
+        for {set i 0} {$i < $k} {incr i} {
+            set  classifier  [$pod($i,a,$linkSrcSubId) entry]
+            $classifier disableLinkFailure
+        }
+    } elseif {$src >= $edgeShift && $src < $hostShift} {
+        set linkFailureType 2
+		set linkSrcSubId [expr ($src - $edgeShift) % $eachPodNum ]
+        set linkDstSubId [expr ($dst - $aggShift) % $eachPodNum ]
+
+        for {set i 0} {$i < $k} {incr i} {
+			set  classifier  [$pod($i,e,$linkSrcSubId) entry]
+			$classifier disableLinkFailure
+        }
+    }
+}
 
 
 
