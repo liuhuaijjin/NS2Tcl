@@ -121,6 +121,7 @@ proc createTcpConnection {job_a jobId tcp_a sink_a ftp_a record {wnd 256} {packe
 
     global pod
     global hostShift
+    global srcAddrPodId dstAddrPodId hostNumInPod
 
     set mapn 		$arrj($jobId,mapNum)
     set reducen 	$arrj($jobId,reduceNum)
@@ -164,6 +165,9 @@ proc createTcpConnection {job_a jobId tcp_a sink_a ftp_a record {wnd 256} {packe
 					$classifier addFidToDstAddr $jjobid [expr [$arrj($jobId,r,$j) id] - $hostShift] 0
 					$classifier addFidToDstAddr $jjobid [expr [$arrj($jobId,m,$i) id] - $hostShift] 1
 				}
+
+				set dstAddrPodId($jjobid) [expr ([$arrj($jobId,r,$j) id] - $hostShift) / $hostNumInPod]
+				set srcAddrPodId($jjobid) [expr ([$arrj($jobId,m,$i) id] - $hostShift) / $hostNumInPod]
 			}
 
             set arrtcp($jobId,$i,$j) 		$tcp
@@ -694,6 +698,7 @@ proc linkFailure { {src 4} {dst 0}} {
 
     global pod edgeShift aggShift hostShift
     global ns eachPodNum k isFlowBased
+    global srcAddrPodId dstAddrPodId
 
     # 设置相应节点 void enableLinkFailure(int linkSrcId, int linkDstId);
     # 对于 flowbased 存在的分配要重新分配
@@ -723,6 +728,7 @@ proc linkFailure { {src 4} {dst 0}} {
         set linkFailureType 2
 		set linkSrcSubId [expr ($src - $edgeShift) % $eachPodNum ]
         set linkDstSubId [expr ($dst - $aggShift) % $eachPodNum ]
+        set linkPodNum [expr ($src - $edgeShift) / $eachPodNum ]
 
         for {set i 0} {$i < $k} {incr i} {
 			set  classifier  [$pod($i,e,$linkSrcSubId) entry]
@@ -736,6 +742,12 @@ proc linkFailure { {src 4} {dst 0}} {
 					if {-1 == $flowId} {
 						continue;
 					}
+
+					set id2 [$pod($i,a,$linkDstSubId) id]
+					if {$dstAddrPodId($flowId) == [expr ($id2 - $aggShift) / $eachPodNum]} {
+						continue;
+					}
+
 					set  classifier2  [$pod($i,a,$linkDstSubId) entry]
 					$classifier2 removeFlowId $flowId $feedBack
 
@@ -754,6 +766,12 @@ proc linkFailure { {src 4} {dst 0}} {
 					if {-1 == $flowId} {
 						continue;
 					}
+
+					set id2 [$pod($i,a,$linkDstSubId) id]
+					if {$srcAddrPodId($flowId) == [expr ($id2 - $aggShift) / $eachPodNum]} {
+						continue;
+					}
+
 					set  classifier2  [$pod($i,a,$linkDstSubId) entry]
 					$classifier2 removeFlowId $flowId $feedBack
 
@@ -1211,6 +1229,9 @@ array set	jobEndTime		""
 set		sceneNum		0
 
 array set ftpRecord ""
+
+array set srcAddrPodId ""
+array set dstAddrPodId ""
 
 #---------JOB ARGUMENTS---------
 
