@@ -719,7 +719,7 @@ proc linkFailure { {src 4} {dst 0}} {
         set linkSrcSubId [expr ($src - $aggShift) % $eachPodNum ]
         set linkPodNum [expr ($src - $aggShift) / $eachPodNum ]
 
-        for {set i 0} {$i < $k} {incr i} {
+        for {set i $linkSrcSubId} {$i <= $linkSrcSubId} {incr i} {
             set  classifier  [$pod($i,a,$linkSrcSubId) entry]
             $classifier enableLinkFailure $src $dst
         }
@@ -730,7 +730,7 @@ proc linkFailure { {src 4} {dst 0}} {
         set linkDstSubId [expr ($dst - $aggShift) % $eachPodNum ]
         set linkPodNum [expr ($src - $edgeShift) / $eachPodNum ]
 
-        for {set i 0} {$i < $k} {incr i} {
+        for {set i $linkSrcSubId} {$i <= $linkSrcSubId} {incr i} {
 			set  classifier  [$pod($i,e,$linkSrcSubId) entry]
 			$classifier enableLinkFailure $src $dst
 

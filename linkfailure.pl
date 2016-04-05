@@ -62,6 +62,6 @@ for($redNum=1; $redNum<=4; $redNum=$redNum+1)
 #	job1	job2	...		jobN	totalTime
 
 #system("gnome-screensaver-command -l");
-#system("shutdown -h now");
+system("shutdown -h now");
 
 
