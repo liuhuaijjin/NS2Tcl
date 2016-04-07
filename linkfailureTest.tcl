@@ -686,6 +686,38 @@ proc printBw {} {
 }
 
 
+proc lfDealWithAggLink { podId subPodId linkDstSubId isFlowBased feedBack lSrc lDst} {
+	global pod dstAddrPodId srcAddrPodId
+
+	set  classifier  [$pod($podId,e,$subPodId) entry]
+	$classifier enableLinkFailure $lSrc $lDst
+
+	if {1 == $isFlowBased} {
+		set flowNum [$classifier getFlowNum4LF $feedBack]
+		for {set j 0} {$j < $flowNum} {incr j} {
+			set flowId [$classifier getFlowId4LF $feedBack]
+			if {-1 == $flowId} {
+				continue;
+			}
+			set next [$classifier addFlowIdforLF $flowId $feedBack]
+			if {-1 == $next} {
+				continue;
+			}
+
+			if {0 == $feedBack && $dstAddrPodId($flowId) == $podId} {
+				continue;
+			}
+			if {1 == $feedBack && $srcAddrPodId($flowId) == $podId} {
+				continue;
+			}
+			set  classifier2  [$pod($podId,a,$linkDstSubId) entry]
+			$classifier2 removeFlowId $flowId $feedBack
+			set  classifier2  [$pod($podId,a,$next) entry]
+			$classifier2 addFlowId $flowId $feedBack -1
+		}
+	}
+}
+
 proc linkFailure { {src 4} {dst 0}} {
 
     global pod edgeShift aggShift hostShift
@@ -695,9 +727,6 @@ proc linkFailure { {src 4} {dst 0}} {
     # 对于 flowbased 存在的分配要重新分配
 
     #pod($i,a,$j)
-
-	set now [$ns now]
-	puts "$now link failure  $src --- $dst"
 
     # 1 表示CORE_LINK, 2 表示AGG_LINK
     set linkFailureType		""
@@ -712,76 +741,23 @@ proc linkFailure { {src 4} {dst 0}} {
         set linkFailureType 1
         set linkSrcSubId [expr ($src - $aggShift) % $eachPodNum ]
         set linkPodNum [expr ($src - $aggShift) / $eachPodNum ]
-		
-		puts "core_link"
-		puts "linkSrcSubId = $linkSrcSubId"
-		puts "linkPodNum = $linkPodNum"
-
 
         for {set i 0} {$i < $k} {incr i} {
             set  classifier  [$pod($i,a,$linkSrcSubId) entry]
-            #puts "[$pod($i,a,$linkSrcSubId) id]"
             $classifier enableLinkFailure $src $dst
         }
-        
+
     } elseif {$src >= $edgeShift && $src < $hostShift} {
         set linkFailureType 2
 		set linkSrcSubId [expr ($src - $edgeShift) % $eachPodNum ]
         set linkDstSubId [expr ($dst - $aggShift) % $eachPodNum ]
-        
-        puts "agg_link"
-		puts "linkSrcSubId = $linkSrcSubId"
-		puts "linkDstSubId = $linkDstSubId"
-        
+        set linkPodNum [expr ($src - $edgeShift) / $eachPodNum ]
 
         for {set i 0} {$i < $k} {incr i} {
-			set  classifier  [$pod($i,e,$linkSrcSubId) entry]
-			puts "[$pod($i,e,$linkSrcSubId) id]"
-
-			$classifier enableLinkFailure $src $dst
-			
-			if {1 == $isFlowBased} {
-				set feedBack 0
-				set flowNum [$classifier getFlowNum4LF $feedBack]
-				puts "flowNum = $flowNum flow"
-				for {set j 0} {$j < $flowNum} {incr j} {
-					set flowId [$classifier getFlowId4LF $feedBack]
-					puts "flowId = $flowId flow"
-					if {-1 == $flowId} {
-						continue;
-					}
-					set  classifier2  [$pod($i,a,$linkDstSubId) entry]
-					$classifier2 removeFlowId $flowId $feedBack
-
-					set next [$classifier addFlowIdforLF $flowId $feedBack]
-					puts "next = $next flow"
-					if {-1 == $next} {
-						continue;
-					}
-					set  classifier2  [$pod($i,a,$next) entry]
-					$classifier2 addFlowId $flowId $feedBack -1
-				}
-
-				set feedBack 1
-				set flowNum [$classifier getFlowNum4LF $feedBack]
-				puts "flowNum = $flowNum ack"
-				for {set j 0} {$j < $flowNum} {incr j} {
-					set flowId [$classifier getFlowId4LF $feedBack]
-					puts "flowId = $flowId ack"
-					if {-1 == $flowId} {
-						continue;
-					}
-					set  classifier2  [$pod($i,a,$linkDstSubId) entry]
-					$classifier2 removeFlowId $flowId $feedBack
-
-					set next [$classifier addFlowIdforLF $flowId $feedBack]
-					puts "next = $next ack"
-					if {-1 == $next} {
-						continue;
-					}
-					set  classifier2  [$pod($i,a,$next) entry]
-					$classifier2 addFlowId $flowId $feedBack -1
-				}
+			#proc lfDealWithAggLink { podId subPodId linkDstSubId isFlowBased feedBack lSrc lDst}
+			for {set j 0} {$j < $eachPodNum} {incr j} {
+				lfDealWithAggLink $i $j $linkDstSubId $isFlowBased 0 $src $dst
+				lfDealWithAggLink $i $j $linkDstSubId $isFlowBased 1 $src $dst
 			}
         }
     }
@@ -822,11 +798,14 @@ proc linkRecovery { {src 4} {dst 0}} {
         set linkDstSubId [expr ($dst - $aggShift) % $eachPodNum ]
 
         for {set i 0} {$i < $k} {incr i} {
-			set  classifier  [$pod($i,e,$linkSrcSubId) entry]
-			$classifier disableLinkFailure
+        	for {set j 0} {$j < $eachPodNum} {incr j} {
+				set  classifier  [$pod($i,e,$j) entry]
+				$classifier disableLinkFailure
+			}
         }
     }
 }
+
 
 
 
