@@ -742,19 +742,16 @@ proc linkFailure { {src 4} {dst 0}} {
 					if {-1 == $flowId} {
 						continue;
 					}
-
-					set id2 [$pod($i,a,$linkDstSubId) id]
-					if {$dstAddrPodId($flowId) == [expr ($id2 - $aggShift) / $eachPodNum]} {
-						continue;
-					}
-
-					set  classifier2  [$pod($i,a,$linkDstSubId) entry]
-					$classifier2 removeFlowId $flowId $feedBack
-
 					set next [$classifier addFlowIdforLF $flowId $feedBack]
 					if {-1 == $next} {
 						continue;
 					}
+
+					if {$dstAddrPodId($flowId) == $i} {
+						continue;
+					}
+					set  classifier2  [$pod($i,a,$linkDstSubId) entry]
+					$classifier2 removeFlowId $flowId $feedBack
 					set  classifier2  [$pod($i,a,$next) entry]
 					$classifier2 addFlowId $flowId $feedBack -1
 				}
@@ -766,19 +763,16 @@ proc linkFailure { {src 4} {dst 0}} {
 					if {-1 == $flowId} {
 						continue;
 					}
-
-					set id2 [$pod($i,a,$linkDstSubId) id]
-					if {$srcAddrPodId($flowId) == [expr ($id2 - $aggShift) / $eachPodNum]} {
-						continue;
-					}
-
-					set  classifier2  [$pod($i,a,$linkDstSubId) entry]
-					$classifier2 removeFlowId $flowId $feedBack
-
 					set next [$classifier addFlowIdforLF $flowId $feedBack]
 					if {-1 == $next} {
 						continue;
 					}
+
+					if {$srcAddrPodId($flowId) == $i} {
+						continue;
+					}
+					set  classifier2  [$pod($i,a,$linkDstSubId) entry]
+					$classifier2 removeFlowId $flowId $feedBack
 					set  classifier2  [$pod($i,a,$next) entry]
 					$classifier2 addFlowId $flowId $feedBack -1
 				}
