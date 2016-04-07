@@ -690,14 +690,12 @@ proc linkFailure { {src 4} {dst 0}} {
 
     global pod edgeShift aggShift hostShift
     global ns eachPodNum k isFlowBased
+    global srcAddrPodId dstAddrPodId
 
     # 设置相应节点 void enableLinkFailure(int linkSrcId, int linkDstId);
     # 对于 flowbased 存在的分配要重新分配
 
     #pod($i,a,$j)
-
-	set now [$ns now]
-	puts "$now link failure  $src --- $dst"
 
     # 1 表示CORE_LINK, 2 表示AGG_LINK
     set linkFailureType		""
@@ -712,73 +710,61 @@ proc linkFailure { {src 4} {dst 0}} {
         set linkFailureType 1
         set linkSrcSubId [expr ($src - $aggShift) % $eachPodNum ]
         set linkPodNum [expr ($src - $aggShift) / $eachPodNum ]
-		
-		puts "core_link"
-		puts "linkSrcSubId = $linkSrcSubId"
-		puts "linkPodNum = $linkPodNum"
-
 
         for {set i 0} {$i < $k} {incr i} {
             set  classifier  [$pod($i,a,$linkSrcSubId) entry]
-            #puts "[$pod($i,a,$linkSrcSubId) id]"
             $classifier enableLinkFailure $src $dst
         }
-        
+
     } elseif {$src >= $edgeShift && $src < $hostShift} {
         set linkFailureType 2
 		set linkSrcSubId [expr ($src - $edgeShift) % $eachPodNum ]
         set linkDstSubId [expr ($dst - $aggShift) % $eachPodNum ]
-        
-        puts "agg_link"
-		puts "linkSrcSubId = $linkSrcSubId"
-		puts "linkDstSubId = $linkDstSubId"
-        
+        set linkPodNum [expr ($src - $edgeShift) / $eachPodNum ]
 
         for {set i 0} {$i < $k} {incr i} {
 			set  classifier  [$pod($i,e,$linkSrcSubId) entry]
-			puts "[$pod($i,e,$linkSrcSubId) id]"
-
 			$classifier enableLinkFailure $src $dst
-			
+
 			if {1 == $isFlowBased} {
 				set feedBack 0
 				set flowNum [$classifier getFlowNum4LF $feedBack]
-				puts "flowNum = $flowNum flow"
 				for {set j 0} {$j < $flowNum} {incr j} {
 					set flowId [$classifier getFlowId4LF $feedBack]
-					puts "flowId = $flowId flow"
 					if {-1 == $flowId} {
+						continue;
+					}
+					set next [$classifier addFlowIdforLF $flowId $feedBack]
+					if {-1 == $next} {
+						continue;
+					}
+
+					if {$dstAddrPodId($flowId) == $i} {
 						continue;
 					}
 					set  classifier2  [$pod($i,a,$linkDstSubId) entry]
 					$classifier2 removeFlowId $flowId $feedBack
-
-					set next [$classifier addFlowIdforLF $flowId $feedBack]
-					puts "next = $next flow"
-					if {-1 == $next} {
-						continue;
-					}
 					set  classifier2  [$pod($i,a,$next) entry]
 					$classifier2 addFlowId $flowId $feedBack -1
 				}
 
 				set feedBack 1
 				set flowNum [$classifier getFlowNum4LF $feedBack]
-				puts "flowNum = $flowNum ack"
 				for {set j 0} {$j < $flowNum} {incr j} {
 					set flowId [$classifier getFlowId4LF $feedBack]
-					puts "flowId = $flowId ack"
 					if {-1 == $flowId} {
+						continue;
+					}
+					set next [$classifier addFlowIdforLF $flowId $feedBack]
+					if {-1 == $next} {
+						continue;
+					}
+
+					if {$srcAddrPodId($flowId) == $i} {
 						continue;
 					}
 					set  classifier2  [$pod($i,a,$linkDstSubId) entry]
 					$classifier2 removeFlowId $flowId $feedBack
-
-					set next [$classifier addFlowIdforLF $flowId $feedBack]
-					puts "next = $next ack"
-					if {-1 == $next} {
-						continue;
-					}
 					set  classifier2  [$pod($i,a,$next) entry]
 					$classifier2 addFlowId $flowId $feedBack -1
 				}
@@ -1237,20 +1223,13 @@ if {"DTPR" == $queueType} {
 	
 }
 
-$ns color 0 Black
-$ns color 1 Blue
-$ns color 2 Red
-$ns color 3 green
-$ns color 4 yellow
-$ns color 5 brown
-$ns color 6 chocolate
-$ns color 7 gold
-$ns color 8 tan
-
 set nbytes [expr $flowVol * 1000 * 1000]
 array set ftpLink ""
 array set ftpNode ""
 array set ftpStatus ""
+
+array set srcAddrPodId ""
+array set dstAddrPodId ""
 
 proc addFidToDstAddr { fid addr feedBack} {
 	global ns pod
@@ -1266,6 +1245,7 @@ proc addFidToDstAddr { fid addr feedBack} {
 proc createTcp {NodeSrc NodeDst fid} {
 	global ns ftpLink ftpNode ftpStatus
 	global hostShift
+	global srcAddrPodId dstAddrPodId hostNumInPod
 
 	set tcp0 [new Agent/TCP]
 	$ns attach-agent $NodeSrc $tcp0
@@ -1285,11 +1265,14 @@ proc createTcp {NodeSrc NodeDst fid} {
 	set ftpStatus($fid)		0
 	set ftpNode($fid,src) [$NodeSrc id]
 	set ftpNode($fid,dst) [$NodeDst id]
-	
+
+	set srcAddrPodId($fid) [expr ([$NodeSrc id] - $hostShift) /$hostNumInPod]
+	set dstAddrPodId($fid) [expr ([$NodeDst id] - $hostShift) /$hostNumInPod]
+
 	#proc addFidToDstAddr { fid addr feedBack}
 	addFidToDstAddr $fid [expr [$NodeDst id] - $hostShift] 0
 	addFidToDstAddr $fid [expr [$NodeSrc id] - $hostShift] 1
-	
+
 	puts "tcp $fid: [$NodeSrc id]   ----    [$NodeDst id]"
 }
 
@@ -1311,10 +1294,20 @@ proc startTcp { wtime} {
 	}
 }
 
+$ns color 0 Black
+$ns color 1 Blue
+$ns color 2 Red
+$ns color 3 green
+$ns color 4 yellow
+$ns color 5 brown
+$ns color 6 chocolate
+$ns color 7 gold
+$ns color 8 tan
+
 #createTcp {NodeSrc NodeDst fid}
 createTcp $host(0) $host(4) 1
-createTcp $host(4) $host(0) 2
-createTcp $host(8) $host(0) 3
+createTcp $host(0) $host(3) 2
+createTcp $host(6) $host(0) 3
 
 #createTcp $host(4) $host(6) 4
 
@@ -1322,11 +1315,7 @@ createTcp $host(8) $host(0) 3
 startTcp 2
 
 # linkFailure { {src 4} {dst 0}}
-$ns at 10 "linkFailure 4 0"
-
-$ns at 11 "createTcp $host(12) $host(2) 5"
-#$ns at 11 "createTcp $host(9) $host(13) 6"
-$ns at 11 "startTcp 11"
+$ns at 10 "linkFailure 12 4"
 
 $ns at 5000.0 "finish $isNAM"
 
