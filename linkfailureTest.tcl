@@ -685,12 +685,42 @@ proc printBw {} {
 
 }
 
+proc lfDealWithAggLink { podId subPodId linkDstSubId isFlowBased feedBack lSrc lDst} {
+	global pod dstAddrPodId srcAddrPodId
+
+	set  classifier  [$pod($podId,e,$subPodId) entry]
+	$classifier enableLinkFailure $lSrc $lDst
+
+	if {1 == $isFlowBased} {
+		set flowNum [$classifier getFlowNum4LF $feedBack]
+		for {set j 0} {$j < $flowNum} {incr j} {
+			set flowId [$classifier getFlowId4LF $feedBack]
+			if {-1 == $flowId} {
+				continue;
+			}
+			set next [$classifier addFlowIdforLF $flowId $feedBack]
+			if {-1 == $next} {
+				continue;
+			}
+
+			if {0 == $feedBack && $dstAddrPodId($flowId) == $podId} {
+				continue;
+			}
+			if {1 == $feedBack && $srcAddrPodId($flowId) == $podId} {
+				continue;
+			}
+			set  classifier2  [$pod($podId,a,$linkDstSubId) entry]
+			$classifier2 removeFlowId $flowId $feedBack
+			set  classifier2  [$pod($podId,a,$next) entry]
+			$classifier2 addFlowId $flowId $feedBack -1
+		}
+	}
+}
 
 proc linkFailure { {src 4} {dst 0}} {
 
     global pod edgeShift aggShift hostShift
     global ns eachPodNum k isFlowBased
-    global srcAddrPodId dstAddrPodId
 
     # 设置相应节点 void enableLinkFailure(int linkSrcId, int linkDstId);
     # 对于 flowbased 存在的分配要重新分配
@@ -723,51 +753,10 @@ proc linkFailure { {src 4} {dst 0}} {
         set linkPodNum [expr ($src - $edgeShift) / $eachPodNum ]
 
         for {set i 0} {$i < $k} {incr i} {
-			set  classifier  [$pod($i,e,$linkSrcSubId) entry]
-			$classifier enableLinkFailure $src $dst
-
-			if {1 == $isFlowBased} {
-				set feedBack 0
-				set flowNum [$classifier getFlowNum4LF $feedBack]
-				for {set j 0} {$j < $flowNum} {incr j} {
-					set flowId [$classifier getFlowId4LF $feedBack]
-					if {-1 == $flowId} {
-						continue;
-					}
-					set next [$classifier addFlowIdforLF $flowId $feedBack]
-					if {-1 == $next} {
-						continue;
-					}
-
-					if {$dstAddrPodId($flowId) == $i} {
-						continue;
-					}
-					set  classifier2  [$pod($i,a,$linkDstSubId) entry]
-					$classifier2 removeFlowId $flowId $feedBack
-					set  classifier2  [$pod($i,a,$next) entry]
-					$classifier2 addFlowId $flowId $feedBack -1
-				}
-
-				set feedBack 1
-				set flowNum [$classifier getFlowNum4LF $feedBack]
-				for {set j 0} {$j < $flowNum} {incr j} {
-					set flowId [$classifier getFlowId4LF $feedBack]
-					if {-1 == $flowId} {
-						continue;
-					}
-					set next [$classifier addFlowIdforLF $flowId $feedBack]
-					if {-1 == $next} {
-						continue;
-					}
-
-					if {$srcAddrPodId($flowId) == $i} {
-						continue;
-					}
-					set  classifier2  [$pod($i,a,$linkDstSubId) entry]
-					$classifier2 removeFlowId $flowId $feedBack
-					set  classifier2  [$pod($i,a,$next) entry]
-					$classifier2 addFlowId $flowId $feedBack -1
-				}
+			#proc lfDealWithAggLink { podId subPodId linkDstSubId isFlowBased feedBack lSrc lDst}
+			for {set j 0} {$j < $eachPodNum} {incr j} {
+				lfDealWithAggLink $i $j $linkDstSubId $isFlowBased 0 $src $dst
+				lfDealWithAggLink $i $j $linkDstSubId $isFlowBased 1 $src $dst
 			}
         }
     }
@@ -808,8 +797,10 @@ proc linkRecovery { {src 4} {dst 0}} {
         set linkDstSubId [expr ($dst - $aggShift) % $eachPodNum ]
 
         for {set i 0} {$i < $k} {incr i} {
-			set  classifier  [$pod($i,e,$linkSrcSubId) entry]
-			$classifier disableLinkFailure
+        	for {set j 0} {$j < $eachPodNum} {incr j} {
+				set  classifier  [$pod($i,e,$j) entry]
+				$classifier disableLinkFailure
+			}
         }
     }
 }
@@ -1087,8 +1078,8 @@ set t_agg       3
 set t_edge      4
 set t_nc       	-1
 
-set		isFlowBased		0
-set		isSinglePath	0
+set	isFlowBased	1
+set	isSinglePath 0
 
 # 1 代表flowBased
 # 0 代表packetBased
@@ -1308,6 +1299,7 @@ $ns color 8 tan
 createTcp $host(0) $host(4) 1
 createTcp $host(0) $host(3) 2
 createTcp $host(6) $host(0) 3
+createTcp $host(8) $host(4) 2
 
 #createTcp $host(4) $host(6) 4
 
@@ -1315,7 +1307,11 @@ createTcp $host(6) $host(0) 3
 startTcp 2
 
 # linkFailure { {src 4} {dst 0}}
-$ns at 10 "linkFailure 12 4"
+$ns at 4 "linkFailure 12 4"
+
+$ns at 6 "createTcp $host(10) $host(1) 5"
+$ns at 6 "createTcp $host(12) $host(8) 6"
+$ns at 6 "startTcp 6"
 
 $ns at 5000.0 "finish $isNAM"
 
