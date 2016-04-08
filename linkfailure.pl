@@ -7,12 +7,12 @@ $runTime=5;
 $mapNum=0;
 $redNum=0;
 
-for($redNum=1; $redNum<=4; $redNum=$redNum+1)
+for($redNum=3; $redNum<=4; $redNum=$redNum+1)
 {
 	$mapNum=$redNum*2+2;
 	$testDir="/home/oslo/simu/testResult/m-$mapNum-r-$redNum";
 	system("mkdir -p $testDir");
-	for($j=4; $j<=8;$j=$j+1)
+	for($j=5; $j<=8;$j=$j+1)
 	{
 		# j -- job数
 		$resultFile="$testDir/result-pror-8-$j.txt";

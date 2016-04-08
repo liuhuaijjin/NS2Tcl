@@ -1257,8 +1257,8 @@ set lfTime			[expr $FirstStart + 10]
 set lfRecoveryTime	[expr $lfTime + 10]
 
 # 设置 linkFailure 的 link的id， 注意这里规定 srcId > dstId
-set lfSrcId			12
-set lfDstId			4
+set lfSrcId			4
+set lfDstId			0
 
 # -----------------------------
 # 获得队列，可以设置队列中优先级的个数。
