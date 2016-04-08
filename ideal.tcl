@@ -5,7 +5,7 @@
 #
 #	目的：
 #	整体实验
-#  多job + 多路径（flow-based scheduling）
+#   多job + 多路径（flow-based scheduling）
 #
 #
 #	已有：
@@ -26,12 +26,14 @@
 #
 #	2015-12-01 15:01:55 
 
-	# tcl程序接受5个参数
+	# tcl程序接受7个参数
 	# argv0		jobnum
 	# argv1		queueNum
 	# argv2		HowToReadPoint	-- 1代表读取文件	-- 2代表随机产生
 	# argv3		isflowBased		-- 1代表flowBased	-- 0代表packetBased
 	# argv4		isSinglePath	-- 1代表设置成单路径
+	# argv5		mapNum
+	# argv6		reduceNum
 
 # -----------------------------------------------------
 
