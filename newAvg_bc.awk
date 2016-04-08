@@ -37,9 +37,9 @@ BEGIN{
 END {
 	print "testIdmax = " testIdmax " testNum = " testNum " totalJob = " totalJob
 	for(i = 1; i<=testNum; ++i) {
-		for(j = 1; j<= testId; j = j + 2){
+		for(j = 1; j<= testIdmax; j = j + 2){
 			if(avgRe[i,j] > avgRe[i,j+1]){
-				++badCount[i];
+				++badCount[j];
 			}
 		}
 	}

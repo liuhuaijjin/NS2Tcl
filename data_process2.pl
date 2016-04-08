@@ -12,7 +12,7 @@ for($redNum=1; $redNum<=4; $redNum=$redNum+1)
 	{
 		$inputFile="$testDir/result-pror-8-$j.txt";
 		$outputFile="$testDir/expr_data-$j.txt";
-		system("awk -f $scriptFile $inputFile >> $outputFile");
+		system("awk -f $scriptFile $inputFile > $outputFile");
 	}
 }
 
