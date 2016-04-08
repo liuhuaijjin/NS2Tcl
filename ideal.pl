@@ -1,6 +1,5 @@
 #!/usr/bin/perl
 
-$resultFile="/home/oslo/simu/result-pror-8.txt";
 $tclFile="/home/oslo/simu/ns2program/ideal.tcl";
 
 $runTime=10;

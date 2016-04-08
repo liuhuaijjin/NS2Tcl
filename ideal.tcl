@@ -4,8 +4,7 @@
 # 
 #
 #	目的：
-#	整体实验
-#   多job + 多路径（flow-based scheduling）
+#	理想状态的实验
 #
 #
 #	已有：
@@ -19,7 +18,6 @@
 #	(3) 当最高优先级完成，次优先级变成最高优先级，即设置最高优先级动态设定。
 #
 #	新增：
-#	(1) 实现flow-based 的 多路径
 #		
 #
 #
@@ -34,7 +32,6 @@
 	# argv4		isSinglePath	-- 1代表设置成单路径
 	# argv5		mapNum
 	# argv6		reduceNum
-
 # -----------------------------------------------------
 
 
@@ -123,6 +120,10 @@ proc createTcpConnection {job_a jobId tcp_a sink_a ftp_a record {wnd 256} {packe
     upvar $ftp_a		arrftp
     global ns isFlowBased ftpRecord
 
+    global pod
+    global hostShift
+    global srcAddrPodId dstAddrPodId hostNumInPod
+
     set mapn 		$arrj($jobId,mapNum)
     set reducen 	$arrj($jobId,reduceNum)
 	set flowCnt		0
@@ -158,6 +159,17 @@ proc createTcpConnection {job_a jobId tcp_a sink_a ftp_a record {wnd 256} {packe
 			set ftpRecord($ftp,src)	$arrj($jobId,m,$i)
 			set ftpRecord($ftp,dst)	$arrj($jobId,r,$j)
 			set ftpRecord($ftp,fid)	$jjobid
+
+			if {1 == $isFlowBased} {
+				foreach index [array names pod] {
+					set  classifier  [$pod($index) entry]
+					$classifier addFidToDstAddr $jjobid [expr [$arrj($jobId,r,$j) id] - $hostShift] 0
+					$classifier addFidToDstAddr $jjobid [expr [$arrj($jobId,m,$i) id] - $hostShift] 1
+				}
+
+				set dstAddrPodId($jjobid) [expr ([$arrj($jobId,r,$j) id] - $hostShift) / $hostNumInPod]
+				set srcAddrPodId($jjobid) [expr ([$arrj($jobId,m,$i) id] - $hostShift) / $hostNumInPod]
+			}
 
             set arrtcp($jobId,$i,$j) 		$tcp
             set arrsink($jobId,$i,$j) 		$sink
@@ -216,6 +228,7 @@ proc addrToSubnetId { id {level 3}} {
 # isFeedBack 用来表示是否是ack路径
 proc centrlCtrlFlow { command fid srcNodeId dstNodeId isFeedBack} {
 	global pod CmdaddFlow CmdremoveFlow
+	global hostShift
 
 	set spid	[addrToPodId $srcNodeId]
 	set ssubpid	[addrToSubnetId $srcNodeId]
@@ -228,13 +241,13 @@ proc centrlCtrlFlow { command fid srcNodeId dstNodeId isFeedBack} {
 	if {$spid != $dpid} {
 		# 不同pod内， 6hops, 4paths
 		if {$command == $CmdaddFlow} {
-			set nextId [$classifier	addFlowId $fid $isFeedBack]
+			set nextId [$classifier	addFlowId $fid $isFeedBack [expr $dstNodeId - $hostShift]]
 			if {-1 == $nextId} {
 				return
 			}
 			set sndNode $pod([addrToPodId $nextId 1],a,[addrToSubnetId $nextId 1])
 			set classifier2  [$sndNode entry]
-			$classifier2	addFlowId $fid $isFeedBack
+			$classifier2	addFlowId $fid $isFeedBack [expr $dstNodeId - $hostShift]
 		} elseif {$command == $CmdremoveFlow} {
 			set nextId [$classifier removeFlowId $fid $isFeedBack]
 			if {-1 == $nextId} {
@@ -248,7 +261,7 @@ proc centrlCtrlFlow { command fid srcNodeId dstNodeId isFeedBack} {
 	} elseif { $ssubpid != $dsubpid} {
 		# 同pod， 不同subpod， 4hops, 2path
 		if {$command == $CmdaddFlow} {
-			set nextId [$classifier	addFlowId $fid $isFeedBack]
+			set nextId [$classifier	addFlowId $fid $isFeedBack [expr $dstNodeId - $hostShift]]
 		} elseif {$command == $CmdremoveFlow} {
 			set nextId [$classifier removeFlowId $fid $isFeedBack]
 		}
@@ -500,16 +513,16 @@ proc everyDetect { {numMb 100} } {
 			#	如果最高优先级job完成
 			#	次高优先级成为最高优先级
 			#	2015年06月12日 星期五 09时46分46秒 
-			if {$queueNum > 0 && $seq == $TopPriorityNum} {
-				set nextTop [expr 1 + $TopPriorityNum]
-				for {set ii $nextTop} {$ii <= $totalJobNum} {incr ii} {
-					if {$jobIng($ii) == 0} {
-						set TopPriorityNum $ii
-						setTopPriority $TopPriorityNum
-						break
-					}
-				}
-			}
+			#if {$queueNum > 0 && $seq == $TopPriorityNum} {
+				#set nextTop [expr 1 + $TopPriorityNum]
+				#for {set ii $nextTop} {$ii <= $totalJobNum} {incr ii} {
+					#if {$jobIng($ii) == 0} {
+						#set TopPriorityNum $ii
+						#setTopPriority $TopPriorityNum
+						#break
+					#}
+				#}
+			#}
 			
         }
     }
@@ -538,8 +551,269 @@ proc everyDetect { {numMb 100} } {
         
         incr qRecordCount 10000
     }
+
+	#proc changeBandwidth { type {can1 1} {can2 1} }
+	#changeBandwidth 1 1 1
+
 }
 
+
+# new
+# 泊松分布 ru 默认 1
+proc poisson { {ru 1}  {vv 0} } {
+	#puts "泊松分布 $ru vv = $vv"
+
+	set k 0
+	set p 1
+	set l [expr exp([expr -1 * $ru])]
+
+	set k [expr $k + 1]
+	set u [expr rand()]
+	set p [expr $p * $u]
+
+	while { $p > $l} {
+		set k [expr $k + 1]
+		set u [expr rand()]
+		set p [expr $p * $u]
+	}
+	return [expr $k - 1]
+}
+
+set V1_GAUSSIAN		0
+set V2_GAUSSIAN		0
+set S_GAUSSIAN		0
+set phase_GAUSSIAN 	0
+
+# 标准正态分布
+# 期望为0.0，方差为1.0
+proc gaussian_NORMAL {} {
+	#puts "标准正态分布"
+
+	global V1_GAUSSIAN
+	global V2_GAUSSIAN
+	global S_GAUSSIAN
+	global phase_GAUSSIAN
+
+	set X 0
+	if {0 == $phase_GAUSSIAN} {
+		set S_GAUSSIAN 1
+		while {$S_GAUSSIAN >= 1 || 0 == $S_GAUSSIAN} {
+			set U1 [expr rand()]
+			set U2 [expr rand()]
+
+			set V1_GAUSSIAN [expr 2 * $U1 - 1]
+			set V2_GAUSSIAN [expr 2 * $U1 - 1]
+			set S_GAUSSIAN [expr $V1_GAUSSIAN * $V1_GAUSSIAN + $V2_GAUSSIAN * $V2_GAUSSIAN]
+		}
+		#X = V1 * sqrt(-2 * log(S) / S);
+		set X [expr $V1_GAUSSIAN * sqrt(double(-2) * log($S_GAUSSIAN) / $S_GAUSSIAN) ]
+	} else {
+		#X = V2 * sqrt(-2 * log(S) / S);
+		set X [expr $V2_GAUSSIAN * sqrt(double(-2) * log($S_GAUSSIAN) / $S_GAUSSIAN) ]
+	}
+	set phase_GAUSSIAN [expr 1 - $phase_GAUSSIAN]
+
+	return $X
+}
+
+# 正态分布 mean std 默认是 0.0 和 1.0
+proc gaussian { { mean 0.0 } { std 1.0 } } {
+	#puts "正态分布 $mean $std"
+
+	set normal [gaussian_NORMAL ]
+	while {$normal < 0} {
+		set normal [gaussian_NORMAL ]
+	}
+	return [expr $mean + $normal * $std]
+}
+
+# 指数分布 lambda默认 2
+proc exponential { { lambda 2}  { vv 0} } {
+	#puts "指数分布 $lambda vv = $vv"
+
+	set pV 0
+	while { 1 == 1} {
+		set pV [expr rand()]
+		if {$pV != 1} {
+			break;
+		}
+	}
+	#pV = (-1.0/lambda)*log(1-pV);
+	return [expr log(1 - $pV) * (-1.0 / $lambda)]
+}
+
+
+# type  :	1 -- 泊松分布 默认
+#			2 -- 正态分布
+#			3 -- 指数分布
+proc changeBandwidth { type {can1 1} {can2 1} } {
+	global ns bandWidth
+	set aLink [$ns get-link-arr]
+	array set arrLink $aLink
+
+#	set now [$ns now]
+#   puts "$now"
+#	parray arrLink
+
+	set distribution 0
+	if { 1 != $type &&  2 != $type && 3 != $type} {
+		set type 1
+	}
+
+	if {1 == $type} {
+		set distribution poisson
+	} elseif {2 == $type} {
+		set distribution gaussian
+	} elseif {3 == $type} {
+		set distribution exponential
+	}
+
+	#puts $distribution
+	foreach i [array names arrLink] {
+		set bgbw [expr int ([$distribution $can1 $can2] * 1000 * 1000) ]
+		$arrLink($i) setbw [expr $bandWidth - $bgbw]
+		#$arrLink($i) setbw [expr 100 * 1000 * 1000]
+	}
+	#puts $bgbw
+}
+
+proc printBw {} {
+	global ns
+	set aLink [$ns get-link-arr]
+	array set arrLink $aLink
+
+	puts "\n########"
+	set now [$ns now]
+    puts "$now"
+	parray arrLink
+
+	foreach i [array names arrLink] {
+		puts "$i  =  [expr [$arrLink($i) bw]  / 1000 / 1000] "
+	}
+	puts "########\n"
+
+}
+
+
+proc lfDealWithAggLink { podId subPodId linkDstSubId isFlowBased feedBack lSrc lDst} {
+	global pod dstAddrPodId srcAddrPodId
+
+	set  classifier  [$pod($podId,e,$subPodId) entry]
+	$classifier enableLinkFailure $lSrc $lDst
+
+	if {1 == $isFlowBased} {
+		set flowNum [$classifier getFlowNum4LF $feedBack]
+		for {set j 0} {$j < $flowNum} {incr j} {
+			set flowId [$classifier getFlowId4LF $feedBack]
+			if {-1 == $flowId} {
+				continue;
+			}
+			set next [$classifier addFlowIdforLF $flowId $feedBack]
+			if {-1 == $next} {
+				continue;
+			}
+
+			if {0 == $feedBack && $dstAddrPodId($flowId) == $podId} {
+				continue;
+			}
+			if {1 == $feedBack && $srcAddrPodId($flowId) == $podId} {
+				continue;
+			}
+			set  classifier2  [$pod($podId,a,$linkDstSubId) entry]
+			$classifier2 removeFlowId $flowId $feedBack
+			set  classifier2  [$pod($podId,a,$next) entry]
+			$classifier2 addFlowId $flowId $feedBack -1
+		}
+	}
+}
+
+proc linkFailure { {src 4} {dst 0}} {
+
+    global pod edgeShift aggShift hostShift
+    global ns eachPodNum k isFlowBased
+
+    # 设置相应节点 void enableLinkFailure(int linkSrcId, int linkDstId);
+    # 对于 flowbased 存在的分配要重新分配
+
+    #pod($i,a,$j)
+
+    # 1 表示CORE_LINK, 2 表示AGG_LINK
+    set linkFailureType		""
+    set linkPodNum			""
+    set linkSrcSubId		""
+    set linkDstSubId		""
+
+    # 只需修改对应pod 内 对应 srcSubid 的节点
+
+    # 判断 断开链路的类型 CORE_LINK or AGG_LINK
+    if { $src >= $aggShift && $src < $edgeShift} {
+        set linkFailureType 1
+        set linkSrcSubId [expr ($src - $aggShift) % $eachPodNum ]
+        set linkPodNum [expr ($src - $aggShift) / $eachPodNum ]
+
+        for {set i 0} {$i < $k} {incr i} {
+            set  classifier  [$pod($i,a,$linkSrcSubId) entry]
+            $classifier enableLinkFailure $src $dst
+        }
+
+    } elseif {$src >= $edgeShift && $src < $hostShift} {
+        set linkFailureType 2
+		set linkSrcSubId [expr ($src - $edgeShift) % $eachPodNum ]
+        set linkDstSubId [expr ($dst - $aggShift) % $eachPodNum ]
+        set linkPodNum [expr ($src - $edgeShift) / $eachPodNum ]
+
+        for {set i 0} {$i < $k} {incr i} {
+			#proc lfDealWithAggLink { podId subPodId linkDstSubId isFlowBased feedBack lSrc lDst}
+			for {set j 0} {$j < $eachPodNum} {incr j} {
+				lfDealWithAggLink $i $j $linkDstSubId $isFlowBased 0 $src $dst
+				lfDealWithAggLink $i $j $linkDstSubId $isFlowBased 1 $src $dst
+			}
+        }
+    }
+
+	# 清空链路队列的包
+    [$ns get-link-queue $src $dst] clearQueue
+    [$ns get-link-queue $src $dst] clearQueue
+
+}
+
+# link 恢复
+proc linkRecovery { {src 4} {dst 0}} {
+
+    global pod edgeShift aggShift hostShift
+    global ns eachPodNum k isFlowBased
+
+    # 设置相应节点 void disableLinkFailure();
+    # 对于 flowbased 存在的分配, 暂时没有重新分配
+
+    # 1 表示CORE_LINK, 2 表示AGG_LINK
+    set linkFailureType		""
+    set linkPodNum			""
+    set linkSrcSubId		""
+    set linkDstSubId		""
+
+    # 判断 断开链路的类型 CORE_LINK or AGG_LINK
+    if { $src >= $aggShift && $src < $edgeShift} {
+        set linkFailureType 1
+        set linkSrcSubId [expr ($src - $aggShift) % $eachPodNum ]
+        set linkPodNum [expr ($src - $aggShift) / $eachPodNum ]
+        for {set i 0} {$i < $k} {incr i} {
+            set  classifier  [$pod($i,a,$linkSrcSubId) entry]
+            $classifier disableLinkFailure
+        }
+    } elseif {$src >= $edgeShift && $src < $hostShift} {
+        set linkFailureType 2
+		set linkSrcSubId [expr ($src - $edgeShift) % $eachPodNum ]
+        set linkDstSubId [expr ($dst - $aggShift) % $eachPodNum ]
+
+        for {set i 0} {$i < $k} {incr i} {
+        	for {set j 0} {$j < $eachPodNum} {incr j} {
+				set  classifier  [$pod($i,e,$j) entry]
+				$classifier disableLinkFailure
+			}
+        }
+    }
+}
 
 
 #**********************************************************
@@ -660,6 +934,8 @@ set		hostShift		[expr 5 * $k * $k / 4]
 set		hostNumInPod	[expr $k * $k / 4]
 set		aggNumInPod		[expr $k * $k / 2]
 
+set     edgeShift       [expr 3 * $k * $k / 4]
+
 # coreSw	记录core 的switch
 # pod		记录agg & edge switch
 # 			pod aggregation switch
@@ -714,7 +990,8 @@ set			qRecordCount	0
 #   linkargu
 set		upLinkNum			$eachPodNum
 set		downLinkNum			$eachPodNum
-set		bandWidth			100Mb
+#set		bandWidth			100Mb
+set		bandWidth			[expr 100 * 1000 * 1000]
 set		linkDelay			10ms
 set		queueLimit			100
 #set		queueType				RED
@@ -916,6 +1193,7 @@ if { 1 == $HowToReadPoint} {
 }
 
 
+
 set		mapNum			[lindex $argv 5]
 set		reduceNum		[lindex $argv 6]
 
@@ -938,6 +1216,9 @@ array set	jobEndTime		""
 set		sceneNum		0
 
 array set ftpRecord ""
+
+array set srcAddrPodId ""
+array set dstAddrPodId ""
 
 #---------JOB ARGUMENTS---------
 
@@ -970,8 +1251,15 @@ if { ![info exists isNAM] } {
 set FirstSet			9
 set FirstStart		[expr 1 + $FirstSet]
 
-set SecondSet		499
-set SecondStart		[expr 1 + $SecondSet]
+# 设置 linkFailure 起始时间
+set lfTime			[expr $FirstStart + 10]
+
+# 设置 linkRecovery 时间
+set lfRecoveryTime	[expr $lfTime + 10]
+
+# 设置 linkFailure 的 link的id， 注意这里规定 srcId > dstId
+set lfSrcId			4
+set lfDstId			0
 
 # -----------------------------
 # 获得队列，可以设置队列中优先级的个数。
@@ -990,6 +1278,10 @@ if {"DTPR" == $queueType} {
 #$ns at $FirstSet "printScene Scene_1_QueueFair"
 
 $ns at $FirstSet "sceneStart $FirstStart $flowVol"
+#proc linkFailure { {src 4} {dst 0}}
+#$ns at $lfTime "linkFailure $lfSrcId $lfDstId"
+#proc linkRecovery { {src 4} {dst 0}}
+#$ns at $lfRecoveryTime "linkRecovery $lfSrcId $lfDstId"
 
 $ns at 5000.0 "finish $isNAM"
 
