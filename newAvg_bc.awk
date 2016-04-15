@@ -50,7 +50,7 @@ END {
 			printf	(result[i,j] / testNum) "\t"
 		}
 		if(0 != i%2){
-			printf	"badCount = " badCount[i] "\t"
+			printf	"badCount = " badCount[i] "\t"		
 		}
 		print "\n"
 	}

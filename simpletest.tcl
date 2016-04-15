@@ -259,11 +259,16 @@ set node_(s4) [$ns node]
 
 set		speed		[lindex $argv 0]
 
-set bandWidth	[expr 10 * 1000 * 1000]
+set bandWidth	[expr 200 * 1000 * 1000]
 
+set linkType ""
 set linkType DTPR
 
-#set linkType DropTail
+if {"DTPR" != $linkType} {
+	set linkType DropTail
+}
+
+puts $linkType
 
 $ns duplex-link $node_(s1) $node_(r1) $bandWidth 3ms DropTail 
 $ns duplex-link $node_(s2) $node_(r1) $bandWidth 3ms DropTail 
@@ -272,19 +277,29 @@ $ns duplex-link $node_(s3) $node_(r2) $bandWidth 3ms DropTail
 $ns duplex-link $node_(s4) $node_(r2) $bandWidth 3ms DropTail 
 
 #Set DTPR queue size to 20
-$ns queue-limit $node_(r1) $node_(r2) 100
 
-$ns queue-limit $node_(s1) $node_(r1) 100
-$ns queue-limit $node_(s2) $node_(r1) 100
-$ns queue-limit $node_(s3) $node_(r2) 100
-$ns queue-limit $node_(s4) $node_(r2) 100
+set qSize 100
+$ns queue-limit $node_(r1) $node_(r2) $qSize
+$ns queue-limit $node_(r2) $node_(r1) $qSize
+
+$ns queue-limit $node_(s1) $node_(r1) $qSize
+$ns queue-limit $node_(r1) $node_(s1) $qSize
+
+$ns queue-limit $node_(s2) $node_(r1) $qSize
+$ns queue-limit $node_(r1) $node_(s2) $qSize
+
+$ns queue-limit $node_(s3) $node_(r2) $qSize
+$ns queue-limit $node_(r2) $node_(s3) $qSize
+
+$ns queue-limit $node_(s4) $node_(r2) $qSize
+$ns queue-limit $node_(r2) $node_(s4) $qSize
 
 
 if { "DTPR" == $linkType } {
  
 set myq [$ns get-link-queue [$node_(r1) id] [$node_(r2) id]]
 #$myq queue-test
-$myq queue-num 3
+
 $myq queue-num 4
 $myq addFidPrior 1
 $myq addFidPrior 2

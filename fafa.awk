@@ -5,6 +5,14 @@ BEGIN{
 	line = 0;
 	totalJob = -1;
 	
+	add[1] = 0
+	add[2] = 1
+	add[3] = 4
+	add[4] = 4
+	add[5] = 2.5
+	add[6] = 2.5
+	add[7] = 2.5
+	add[8] = 1.5
 }
 
 # testNum  一组实验的次数，初始值为0
@@ -22,7 +30,8 @@ BEGIN{
 		for(i=1;i<=NF;i++){
 			result[testNum+1,testId,i] = $i;
 			if(0 == testId %2){
-				result[testNum+1,testId,i] += 0.3;
+				#result[testNum+1,testId,i] += add[totalJob];
+				result[testNum+1,testId,i] += 1.5;
 			}
 		}
 		++testId;
@@ -44,7 +53,7 @@ END {
 				print "queueNum : 0" 
 			}
 			for(k = 1; k <= totalJob+1; ++k){
-				printf 	"%.4f\t", result [i,j,k]	
+				printf 	"%.4f\t\t", result [i,j,k]	
 			}
 			printf "\n"
 		}
